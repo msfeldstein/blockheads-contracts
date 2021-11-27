@@ -14,13 +14,9 @@
     "web3modal": "^1.9.4"
   },
   "scripts": {
-    "minting:watch": "parcel mint-page/index.html",
-    "token-viewer": "parcel token-view/index.html",
-    "build:token-viewer": "npm run compile-contracts; parcel build token-view/index.html",
-    "build": "npm run compile-contracts; parcel build mint-page/index.html",
-    "noop": "",
-    "compile-contracts": "cd solidity; hardhat compile",
-    "test-contracts": "cd solidity; REPORT_GAS=true hardhat test"
+    "compile-contracts": "hardhat compile",
+    "gas-report": "REPORT_GAS=true hardhat test",
+    "test": "hardhat test"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
