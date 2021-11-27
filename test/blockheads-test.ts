@@ -276,7 +276,7 @@ describe("Blockheads", function () {
       mainAccount.address,
       1
     );
-    const token1MetadataHashBefore = await blockheads.tokenMetadataHash(token1);
+    const [token1MetadataHashBefore] = await blockheads.tokenMetadataHash(token1);
     await 
       expect(blockheads.swapParts(
         token1,
@@ -288,7 +288,7 @@ describe("Blockheads", function () {
         false,
         false
     )).to.emit(blockheads, "TokenMetadataChanged");
-    const token1MetadataHashAfter = await blockheads.tokenMetadataHash(token1);
+    const [token1MetadataHashAfter] = await blockheads.tokenMetadataHash(token1);
     expect(token1MetadataHashAfter).not.to.equal(token1MetadataHashBefore)
   });
 

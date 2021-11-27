@@ -342,8 +342,10 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
             overrides[token1].headwearOverridden = true;
             overrides[token2].headwearOverridden = true;
         }
-        emit TokenMetadataChanged(token1, tokenMetadataHash(token1));
-        emit TokenMetadataChanged(token2, tokenMetadataHash(token2));
+        (uint256 metadataHash1,) = tokenMetadataHash(token1);
+        (uint256 metadataHash2,) = tokenMetadataHash(token2);
+        emit TokenMetadataChanged(token1, metadataHash1, 0);
+        emit TokenMetadataChanged(token2, metadataHash2, 0);
     }
 
     function swapProfessions(uint256 token1, uint256 token2)
@@ -356,8 +358,10 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         professionOverrides[token2].profession = newProfession2;
         professionOverrides[token1].overridden = true;
         professionOverrides[token2].overridden = true;
-        emit TokenMetadataChanged(token1, tokenMetadataHash(token1));
-        emit TokenMetadataChanged(token2, tokenMetadataHash(token2));
+        (uint256 metadataHash1,) = tokenMetadataHash(token1);
+        (uint256 metadataHash2,) = tokenMetadataHash(token2);
+        emit TokenMetadataChanged(token1, metadataHash1, 0);
+        emit TokenMetadataChanged(token2, metadataHash2, 0);
     }
 
     function setName(uint256 tokenId, string memory name) public {
@@ -367,7 +371,8 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         birthRegistry[nameOverrides[tokenId]] = false;
         nameOverrides[tokenId] = name;
         birthRegistry[name] = true;
-        emit TokenMetadataChanged(tokenId, tokenMetadataHash(tokenId));
+        (uint256 metadataHash,) = tokenMetadataHash(tokenId);
+        emit TokenMetadataChanged(tokenId, metadataHash, 0);
     }
 
     function getName(uint256 tokenId) public view returns (string memory) {
@@ -511,8 +516,8 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         return string(abi.encodePacked("data:application/json;base64,", json));
     }
 
-    function tokenMetadataHash(uint256 _tokenId) public view override returns (uint256) {
-        return uint256(keccak256(abi.encode(
+    function tokenMetadataHash(uint256 _tokenId) public view override returns (uint256, uint256) {
+        return (uint256(keccak256(abi.encode(
             backgroundIndex(_tokenId),
             bodyIndex(_tokenId),
             armsIndex(_tokenId),
@@ -520,7 +525,7 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
             faceIndex(_tokenId),
             headwearIndex(_tokenId),
             getName(_tokenId)
-        )));
+        ))), 0);
     }
 
     function getBgData(uint256 tokenId) public view returns (bytes memory) {

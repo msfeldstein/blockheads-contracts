@@ -11,10 +11,11 @@ interface IERC721Mutable {
     ///         Marketplaces should expire offers if the metadata has changed after the offer was placed.
     /// @param _tokenId - the NFT asset queried
     /// @return _metadataHash - the royalty payment amount for value sale price
+    /// @return _timeToLive - The amount of time the metadata is expected to be valid for, in seconds.  Return 0 for an infinite TTL if the metadata isn't time based, and only changes via external action.
     function tokenMetadataHash(uint256 _tokenId)
         external
         view
-        returns (uint256 _metadataHash);
+        returns (uint256 _metadataHash, uint256 _timeToLive);
 
-    event TokenMetadataChanged(uint256 _tokenId, uint256 _metadataHash);
+    event TokenMetadataChanged(uint256 _tokenId, uint256 _metadataHash, uint256 _timeToLive);
 }
