@@ -1,0 +1,12 @@
+Background
+https://etherscan.io/address/0x0DF20d6d4A0A93889DeC0A311Ef13DcDFdb40Aa7#contracts
+Arms
+https://etherscan.io/address/0xdbA5943a3F519DbD8bE0f19A6F3abbc39d6E3295#code
+Head
+https://etherscan.io/address/0x1B49C7632Ca16718596D3A196B49e1c075eD8857#code
+Face
+https://etherscan.io/address/0x8Fc90ccddEca450D763AFd8a249c8Fdb443c9f1c#code
+Body
+https://etherscan.io/address/0xa22b1896479dBA6b408e5D2d1E3308be14f8aDA3#code
+Headwear
+https://etherscan.io/address/0xD3eB8dFe56ae43D8D18F429208fe9521e72886d6#code

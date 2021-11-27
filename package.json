@@ -1,0 +1,52 @@
+{
+  "name": "blockman-supply",
+  "version": "1.0.0",
+  "license": "MIT",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.3.2",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "@walletconnect/web3-provider": "^1.6.6",
+    "dotenv": "^10.0.0",
+    "ethers": "^5.4.7",
+    "got": "^11.8.2",
+    "hardhat": "^2.6.4",
+    "web3": "^1.6.0",
+    "web3modal": "^1.9.4"
+  },
+  "scripts": {
+    "minting:watch": "parcel mint-page/index.html",
+    "token-viewer": "parcel token-view/index.html",
+    "build:token-viewer": "npm run compile-contracts; parcel build token-view/index.html",
+    "build": "npm run compile-contracts; parcel build mint-page/index.html",
+    "noop": "",
+    "compile-contracts": "cd solidity; hardhat compile",
+    "test-contracts": "cd solidity; REPORT_GAS=true hardhat test"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.6",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@parcel/resolver-glob": "^2.0.0-nightly.2338",
+    "@parcel/transformer-image": "^2.0.0-rc.0",
+    "@typechain/ethers-v5": "^7.1.2",
+    "@typechain/hardhat": "^2.3.0",
+    "@types/mocha": "^9.0.0",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.4.0",
+    "hardhat-contract-sizer": "^2.1.1",
+    "hardhat-deploy": "^0.9.1",
+    "hardhat-gas-reporter": "^1.0.4",
+    "ipfs-http-client": "^53.0.0",
+    "is-svg": "^4.3.1",
+    "jsdom": "^17.0.0",
+    "node-fetch": "^3.0.0",
+    "node-zip": "^1.1.1",
+    "nodemon": "^2.0.14",
+    "parcel": "^2.0.0-rc.0",
+    "pngcrush": "^3.0.0",
+    "prettier": "^2.4.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.18",
+    "ts-node": "^10.3.1",
+    "typescript": "^4.4.3"
+  }
+}
