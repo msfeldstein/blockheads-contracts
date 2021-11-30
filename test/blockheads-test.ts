@@ -266,6 +266,32 @@ describe("Blockheads", function () {
     expect(token2HeadAfter).to.equal(token2HeadBefore);
   });
 
+  it("Should emit an event and change metadata hash on swap", async function () {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      1
+    );
+    const [token1MetadataHashBefore] = await blockheads.tokenMetadataHash(token1);
+    await 
+      expect(blockheads.swapParts(
+        token1,
+        token2,
+        false,
+        true,
+        false,
+        true,
+        false,
+        false
+    )).to.emit(blockheads, "TokenMetadataChanged");
+    const [token1MetadataHashAfter] = await blockheads.tokenMetadataHash(token1);
+    expect(token1MetadataHashAfter).not.to.equal(token1MetadataHashBefore)
+  });
+
   it("Can be withdrawn by owning account", async function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];

@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./ERC2981ContractWideRoyalties.sol";
+import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
 
@@ -72,9 +73,7 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 }
 
-contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties {
-    event BlockheadReconfigured(uint256 tokenId);
-
+contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Mutable {
     // Max there will ever be available
     uint256 public constant totalAvailable = 10000;
     // currentlyAvailable for releasing in batches
@@ -343,8 +342,10 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties {
             overrides[token1].headwearOverridden = true;
             overrides[token2].headwearOverridden = true;
         }
-        emit BlockheadReconfigured(token1);
-        emit BlockheadReconfigured(token2);
+        (uint256 metadataHash1,) = tokenMetadataHash(token1);
+        (uint256 metadataHash2,) = tokenMetadataHash(token2);
+        emit TokenMetadataChanged(token1, metadataHash1, 0);
+        emit TokenMetadataChanged(token2, metadataHash2, 0);
     }
 
     function swapProfessions(uint256 token1, uint256 token2)
@@ -357,8 +358,10 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties {
         professionOverrides[token2].profession = newProfession2;
         professionOverrides[token1].overridden = true;
         professionOverrides[token2].overridden = true;
-        emit BlockheadReconfigured(token1);
-        emit BlockheadReconfigured(token2);
+        (uint256 metadataHash1,) = tokenMetadataHash(token1);
+        (uint256 metadataHash2,) = tokenMetadataHash(token2);
+        emit TokenMetadataChanged(token1, metadataHash1, 0);
+        emit TokenMetadataChanged(token2, metadataHash2, 0);
     }
 
     function setName(uint256 tokenId, string memory name) public {
@@ -368,7 +371,8 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties {
         birthRegistry[nameOverrides[tokenId]] = false;
         nameOverrides[tokenId] = name;
         birthRegistry[name] = true;
-        emit BlockheadReconfigured(tokenId);
+        (uint256 metadataHash,) = tokenMetadataHash(tokenId);
+        emit TokenMetadataChanged(tokenId, metadataHash, 0);
     }
 
     function getName(uint256 tokenId) public view returns (string memory) {
@@ -510,6 +514,18 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties {
             )
         );
         return string(abi.encodePacked("data:application/json;base64,", json));
+    }
+
+    function tokenMetadataHash(uint256 _tokenId) public view override returns (uint256, uint256) {
+        return (uint256(keccak256(abi.encode(
+            backgroundIndex(_tokenId),
+            bodyIndex(_tokenId),
+            armsIndex(_tokenId),
+            headIndex(_tokenId),
+            faceIndex(_tokenId),
+            headwearIndex(_tokenId),
+            getName(_tokenId)
+        ))), 0);
     }
 
     function getBgData(uint256 tokenId) public view returns (bytes memory) {
