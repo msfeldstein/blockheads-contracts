@@ -17,5 +17,5 @@ interface IERC721Mutable {
         view
         returns (uint256 _metadataHash, uint256 _timeToLive);
 
-    event TokenMetadataChanged(uint256 _tokenId, uint256 _metadataHash, uint256 _timeToLive);
+    event TokenMetadataChanged(uint256 indexed _tokenId, uint256 _metadataHash, uint256 _timeToLive);
 }
