@@ -86,7 +86,11 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     uint256 public nextTokenId = 1; // 1, for friendship
     bool public mintingEnabled = false;
 
-    // EIP-712 signing for swaps between different owners
+    // EIP-712 signing for swaps between different owners.
+    // In order to make easier and cheaper swapping, we add a swapPartsCrossUser function that can
+    // swap parts between two tokens that aren't owned by the same person.  UserA can swap with a token
+    // owned by userB as long as userB provides a signature with the two token IDs and the swaps they wish
+    // to approve.
     bytes32 public DOMAIN_SEPARATOR;
     bytes32 public constant COUNTERPARTY_TYPEHASH =
         keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce)");
@@ -332,7 +336,11 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool faces,
         bool headwear) public {
             address otherOwner = ownerOf(token2);
+            // We need to ensure that the owner of token 2 signed a message approving the exact swap
+            // that's trying to be performed.  We use the nonce to ensure the swap can't be performed twice.
             uint16 nonce = overrides[token2].nonce;
+            // We create a digest message that is packed exactly like we pack it on the client side, and then
+            // recover the signature from it and expect it to match the other user.
             bytes32 digest = keccak256(
                 abi.encodePacked(
                     "\x19\x01",
