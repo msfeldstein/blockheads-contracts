@@ -96,15 +96,16 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     bytes32 public DOMAIN_SEPARATOR;
     // The TYPEHASH is the description of the shape of the data that needs to exactly match the shape of the data as we sign it.
     bytes32 public constant COUNTERPARTY_TYPEHASH =
-        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce1,uint16 nonce2)");
+        keccak256("Swap(uint256 tokenId,uint32 background,uint32 body,uint32 arms,uint32 head,uint32 face,uint32 headwear,uint16 nonce)");
 
     struct SwapData {
-                bool background;
-        bool body;
-        bool arms;
-        bool head;
-        bool face;
-        bool headwear;
+        uint32 background;
+        uint32 body;
+        uint32 arms;
+        uint32 head;
+        uint32 face;
+        uint32 headwear;
+        uint16 nonce;
     }
 
     /**
@@ -325,9 +326,23 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     }
 
     // If you want to invalidate a swap signature bump the nonce of your token
-    function bumpNonce(uint256 tokenId) public {
+    function invalidateSignatures(uint256 tokenId) public {
         require(ownerOf(tokenId) == msg.sender);
         overrides[tokenId].nonce++;
+    }
+
+    // The indices for all layers of the token.  We can't just use overrides because
+    // anything non-overridden will need to use initialValueFor
+    function layerValues(uint256 tokenId) public view returns (SwapData memory) {
+        return SwapData(
+            backgroundIndex(tokenId),
+            bodyIndex(tokenId),
+            armsIndex(tokenId),
+            headIndex(tokenId),
+            faceIndex(tokenId),
+            headwearIndex(tokenId),
+            overrides[tokenId].nonce
+        );
     }
 
     function swapParts(
@@ -344,16 +359,14 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
     }
 
-    function createDigest(uint256 token1, uint256 token2, SwapData memory swapData) internal view returns (bytes32) {
+    function createDigest(uint256 token2, SwapData memory swapData) internal view returns (bytes32) {
         // We need to ensure that the owner of token 2 signed a message approving the exact swap
         // that's trying to be performed.  We use the nonces to ensure the swap can't be performed twice.
-        uint16 nonce1 = overrides[token1].nonce;
-        uint16 nonce2 = overrides[token2].nonce;
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
                 DOMAIN_SEPARATOR,
-                keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, swapData.background, swapData.body, swapData.arms, swapData.head, swapData.face, swapData.headwear, nonce1, nonce2))
+                keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, swapData.background, swapData.body, swapData.arms, swapData.head, swapData.face, swapData.headwear, swapData.nonce))
             )
         );
         return digest;
@@ -368,15 +381,16 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool heads,
         bool faces,
         bool headwear) public {
+            // The signature is for the final results so we attempt the swap and then verify
+            // that the other use has signed for the final results, and roll back if something else happened
+            _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
             address otherOwner = ownerOf(token2);
- 
-
             // We create a digest message that is packed exactly like we pack it on the client side, and then
             // recover the signature from it and expect it to match the other user.
-            bytes32 digest = createDigest(token1, token2, SwapData(background, body, arms, heads, faces, headwear));
+            bytes32 digest = createDigest(token2, layerValues(token2));
             address recoveredAddress = digest.recover(signature);
             require(recoveredAddress == otherOwner);
-            _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
+            
         }
 
     function _doSwapParts(uint256 token1,

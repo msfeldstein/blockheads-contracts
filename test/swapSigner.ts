@@ -1,22 +1,23 @@
 import { BigNumber } from "@ethersproject/bignumber";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
+// SwapData indicates the final desired outcome of a swap.  Put the new index
+// you want for any layer, and your existing index for any existing layers.
+// This will be used to ensure the final result of a swap is what you wanted.
 export type SwapData = {
-    background: boolean;
-    body: boolean;
-    arms: boolean;
-    head: boolean;
-    face: boolean;
-    headwear: boolean;
-    nonce1: BigNumber;
-    nonce2: BigNumber;
+    background: number;
+    body: number;
+    arms: number;
+    head: number;
+    face: number;
+    headwear: number;
+    nonce: number;
 }
 
 export async function createSwapSignature(
   signer: SignerWithAddress,
   contractAddress: string,
   tokenId: BigNumber,
-  counterTokenId: BigNumber,
   swaps: SwapData
 ) {
   const chainId = await signer.getChainId();
@@ -28,23 +29,20 @@ export async function createSwapSignature(
   };
   const types = {
     Swap: [
-        { name: "ownersToken", type: "uint256" },
-        { name: "otherToken", type: "uint256"},
-        { name: "background", type: "bool"},
-        { name: "body", type: "bool"},
-        { name: "arms", type: "bool"},
-        { name: "head", type: "bool"},
-        { name: "face", type: "bool"},
-        { name: "headwear", type: "bool"},
-        { name: "nonce1", type: "uint16"},
-        { name: "nonce2", type: "uint16"},
+        { name: "tokenId", type: "uint256" },
+        { name: "background", type: "uint32"},
+        { name: "body", type: "uint32"},
+        { name: "arms", type: "uint32"},
+        { name: "head", type: "uint32"},
+        { name: "face", type: "uint32"},
+        { name: "headwear", type: "uint32"},
+        { name: "nonce", type: "uint16"},
     ],
   };
 
   const sig = await signer._signTypedData(domain, types, {
-    ownersToken: tokenId,
-    otherToken: counterTokenId,
-    ...swaps
+    tokenId,
+    ...swaps,
   });
   return sig
 }
