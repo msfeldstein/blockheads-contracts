@@ -1,0 +1,86 @@
+// //SPDX-License-Identifier: Unlicense
+pragma solidity ^0.8.0;
+
+contract ProfessionsImageData {
+    function getLabel(uint256 slot) public pure returns (string memory) {
+        string[71] memory names = [
+            "Firefighter",
+            "Teacher",
+            "Solidity Engineer",
+            "Architect",
+            "Philosopher",
+            "Dog Trainer",
+            "Pilot",
+            "Spy",
+            "Astronaut",
+            "Groundskeeper",
+            "Doctor",
+            "Investor",
+            "Curator",
+            "Chef",
+            "Artist",
+            "Police Officer",
+            "Fisherman",
+            "Nurse",
+            "Botanist",
+            "Influencer",
+            "Graphic Designer",
+            "Businessman",
+            "Podcaster",
+            "Racecar Driver",
+            "Midwife",
+            "Plumber",
+            "Product Manager",
+            "Founder",
+            "Comedian",
+            "Super Hero",
+            "Scuba Diver",
+            "Photographer",
+            "Yoga Instructor",
+            "Carpenter",
+            "Singer",
+            "Therapist",
+            "Mycologist",
+            "Forest Ranger",
+            "Mail Carrier",
+            "Secret Agent",
+            "DJ",
+            "Magician",
+            "Dog Whisperer",
+            "Zookeeper",
+            "Shaman",
+            "Curator",
+            "Bus Driver",
+            "Construction Worker",
+            "Train Conductor",
+            "Archeologist",
+            "Hockey Player",
+            "Basketball Player",
+            "Baseball Player",
+            "Golfer",
+            "Scientist",
+            "Florist",
+            "Farmer",
+            "Ski Instructor",
+            "Pet Groomer",
+            "Concierge",
+            "Dentist",
+            "Billionaire",
+            "Psychoanalyst",
+            "Mayor",
+            "Retired",
+            "Dogecoin Investor",
+            "Psychic",
+            "Uber Driver",
+            "Game Designer",
+            "President",
+            "Vice President"
+        ];
+        return names[slot % names.length];
+    }
+
+    // This should never be called
+    function getData(uint256) public pure returns (bytes memory) {
+        return abi.encodePacked("");
+    }
+}
