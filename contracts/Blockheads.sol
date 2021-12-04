@@ -96,7 +96,16 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     bytes32 public DOMAIN_SEPARATOR;
     // The TYPEHASH is the description of the shape of the data that needs to exactly match the shape of the data as we sign it.
     bytes32 public constant COUNTERPARTY_TYPEHASH =
-        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce)");
+        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce1,uint16 nonce2)");
+
+    struct SwapData {
+                bool background;
+        bool body;
+        bool arms;
+        bool head;
+        bool face;
+        bool headwear;
+    }
 
     /**
     Attributes can be referenced by an index into the labels and image data
@@ -315,6 +324,12 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         _;
     }
 
+    // If you want to invalidate a swap signature bump the nonce of your token
+    function bumpNonce(uint256 tokenId) public {
+        require(ownerOf(tokenId) == msg.sender);
+        overrides[tokenId].nonce++;
+    }
+
     function swapParts(
         uint256 token1,
         uint256 token2,
@@ -329,6 +344,21 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
     }
 
+    function createDigest(uint256 token1, uint256 token2, SwapData memory swapData) internal view returns (bytes32) {
+        // We need to ensure that the owner of token 2 signed a message approving the exact swap
+        // that's trying to be performed.  We use the nonces to ensure the swap can't be performed twice.
+        uint16 nonce1 = overrides[token1].nonce;
+        uint16 nonce2 = overrides[token2].nonce;
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, swapData.background, swapData.body, swapData.arms, swapData.head, swapData.face, swapData.headwear, nonce1, nonce2))
+            )
+        );
+        return digest;
+    }
+
     function swapPartsCrossUser(uint256 token1,
         uint256 token2,
         bytes calldata signature,
@@ -339,18 +369,11 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool faces,
         bool headwear) public {
             address otherOwner = ownerOf(token2);
-            // We need to ensure that the owner of token 2 signed a message approving the exact swap
-            // that's trying to be performed.  We use the nonce to ensure the swap can't be performed twice.
-            uint16 nonce = overrides[token2].nonce;
+ 
+
             // We create a digest message that is packed exactly like we pack it on the client side, and then
             // recover the signature from it and expect it to match the other user.
-            bytes32 digest = keccak256(
-                abi.encodePacked(
-                    "\x19\x01",
-                    DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, background, body, arms, heads, faces, headwear, nonce))
-                )
-            );
+            bytes32 digest = createDigest(token1, token2, SwapData(background, body, arms, heads, faces, headwear));
             address recoveredAddress = digest.recover(signature);
             require(recoveredAddress == otherOwner);
             _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);

@@ -191,11 +191,15 @@ describe("Blockheads", function () {
       mainAccount.address,
       0
     );
+    // Bump the nonce here so the nonces are different and we actually test that, rather than
+    // them both being 0 and not being tested
+    await blockheads.bumpNonce(token1)
     const token2 = await blockheads.tokenOfOwnerByIndex(
       otherAccount.address,
       0
     );
-    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce1 = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce2 = (await blockheads.overrides.call(otherAccount, token2)).nonce
     let token1HeadBefore = await blockheads.headIndex(token1);
     let token2HeadBefore = await blockheads.headIndex(token2);
     const token1BodyBefore = await blockheads.bodyIndex(token1);
@@ -207,7 +211,8 @@ describe("Blockheads", function () {
       arms: false,
       face: false,
       headwear: false,
-      nonce: BigNumber.from(nonce)
+      nonce1: BigNumber.from(nonce1),
+      nonce2: BigNumber.from(nonce2)
     })
     await blockheads.swapPartsCrossUser(
       token1,
@@ -222,8 +227,6 @@ describe("Blockheads", function () {
     );
     let token1HeadAfter = await blockheads.headIndex(token1);
     let token2HeadAfter = await blockheads.headIndex(token2);
-    const token1BodyAfter = await blockheads.bodyIndex(token1);
-    const token2BodyAfter = await blockheads.bodyIndex(token2);
     expect(token1HeadAfter).to.equal(token2HeadBefore);
     expect(token2HeadAfter).to.equal(token1HeadBefore);
   })
@@ -238,11 +241,15 @@ describe("Blockheads", function () {
       mainAccount.address,
       0
     );
+    // Bump the nonce here so the nonces are different and we actually test that, rather than
+    // them both being 0 and not being tested
+    await blockheads.bumpNonce(token1)
     const token2 = await blockheads.tokenOfOwnerByIndex(
       otherAccount.address,
       0
     );
-    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce1 = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce2 = (await blockheads.overrides.call(otherAccount, token2)).nonce
     const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
       background: false,
       body: false,
@@ -250,7 +257,8 @@ describe("Blockheads", function () {
       arms: false,
       face: false,
       headwear: false,
-      nonce: BigNumber.from(nonce)
+      nonce1: BigNumber.from(nonce1),
+      nonce2: BigNumber.from(nonce2)
     })
     await blockheads.swapPartsCrossUser(
       token1,
@@ -295,7 +303,8 @@ describe("Blockheads", function () {
     let token2HeadBefore = await blockheads.headIndex(token2);
     const token1BodyBefore = await blockheads.bodyIndex(token1);
     const token2BodyBefore = await blockheads.bodyIndex(token2);
-    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce1 = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const nonce2 = (await blockheads.overrides.call(otherAccount, token2)).nonce
     // Signature signs to swap arms but below we'll swap head too, and that should be rejected
     const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
       background: false,
@@ -304,7 +313,7 @@ describe("Blockheads", function () {
       arms: true,
       face: false,
       headwear: false,
-      nonce
+      nonce1, nonce2
     })
     await expectRevert.unspecified(blockheads.swapPartsCrossUser(
       token1,
