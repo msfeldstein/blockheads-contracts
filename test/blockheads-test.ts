@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { expectRevert } from "@openzeppelin/test-helpers";
 import isSvg from "is-svg";
@@ -194,6 +195,7 @@ describe("Blockheads", function () {
       otherAccount.address,
       0
     );
+    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
     let token1HeadBefore = await blockheads.headIndex(token1);
     let token2HeadBefore = await blockheads.headIndex(token2);
     const token1BodyBefore = await blockheads.bodyIndex(token1);
@@ -205,6 +207,7 @@ describe("Blockheads", function () {
       arms: false,
       face: false,
       headwear: false,
+      nonce: BigNumber.from(nonce)
     })
     await blockheads.swapPartsCrossUser(
       token1,
@@ -225,6 +228,55 @@ describe("Blockheads", function () {
     expect(token2HeadAfter).to.equal(token1HeadBefore);
   })
 
+  it("Can't use the same signature twice", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
+      background: false,
+      body: false,
+      head: true,
+      arms: false,
+      face: false,
+      headwear: false,
+      nonce: BigNumber.from(nonce)
+    })
+    await blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    );
+
+    await expectRevert.unspecified(blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ));
+  })
+
   it("Should not allow swapping different parts than signature signed for", async function() {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
@@ -243,6 +295,7 @@ describe("Blockheads", function () {
     let token2HeadBefore = await blockheads.headIndex(token2);
     const token1BodyBefore = await blockheads.bodyIndex(token1);
     const token2BodyBefore = await blockheads.bodyIndex(token2);
+    const nonce = (await blockheads.overrides.call(otherAccount, token1)).nonce
     // Signature signs to swap arms but below we'll swap head too, and that should be rejected
     const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
       background: false,
@@ -251,6 +304,7 @@ describe("Blockheads", function () {
       arms: true,
       face: false,
       headwear: false,
+      nonce
     })
     await expectRevert.unspecified(blockheads.swapPartsCrossUser(
       token1,

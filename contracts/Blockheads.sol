@@ -89,7 +89,7 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     // EIP-712 signing for swaps between different owners
     bytes32 public DOMAIN_SEPARATOR;
     bytes32 public constant COUNTERPARTY_TYPEHASH =
-        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear)");
+        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce)");
 
     /**
     Attributes can be referenced by an index into the labels and image data
@@ -332,11 +332,12 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool faces,
         bool headwear) public {
             address otherOwner = ownerOf(token2);
+            uint16 nonce = overrides[token2].nonce;
             bytes32 digest = keccak256(
                 abi.encodePacked(
                     "\x19\x01",
                     DOMAIN_SEPARATOR,
-                    keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, background, body, arms, heads, faces, headwear))
+                    keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, background, body, arms, heads, faces, headwear, nonce))
                 )
             );
             address recoveredAddress = digest.recover(signature);

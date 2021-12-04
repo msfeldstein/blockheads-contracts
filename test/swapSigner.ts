@@ -8,6 +8,7 @@ export type SwapData = {
     head: boolean;
     face: boolean;
     headwear: boolean;
+    nonce: BigNumber;
 }
 
 export async function createSwapSignature(
@@ -34,7 +35,7 @@ export async function createSwapSignature(
         { name: "head", type: "bool"},
         { name: "face", type: "bool"},
         { name: "headwear", type: "bool"},
-        // { name: "nonce", type: "uint16"}
+        { name: "nonce", type: "uint16"}
 
     ],
   };
