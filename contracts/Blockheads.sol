@@ -340,7 +340,7 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
                 )
             );
             address recoveredAddress = digest.recover(signature);
-            require(recoveredAddress == otherOwner, "Invalid Signature");
+            require(recoveredAddress == otherOwner);
             _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
         }
 

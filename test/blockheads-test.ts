@@ -72,7 +72,6 @@ describe("Blockheads", function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
     const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
     await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 2);
     await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
     let balance = await blockheads.balanceOf(mainAccount.address)
@@ -86,7 +85,6 @@ describe("Blockheads", function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
     const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
     await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 1);
     await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
     let balance = await blockheads.balanceOf(mainAccount.address)
@@ -208,9 +206,6 @@ describe("Blockheads", function () {
       face: false,
       headwear: false,
     })
-    console.log(mainAccount.address)
-    console.log(otherAccount.address)
-    console.log({signature})
     await blockheads.swapPartsCrossUser(
       token1,
       token2,
@@ -228,6 +223,50 @@ describe("Blockheads", function () {
     const token2BodyAfter = await blockheads.bodyIndex(token2);
     expect(token1HeadAfter).to.equal(token2HeadBefore);
     expect(token2HeadAfter).to.equal(token1HeadBefore);
+  })
+
+  it("Should not allow swapping different parts than signature signed for", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    let token1HeadBefore = await blockheads.headIndex(token1);
+    let token2HeadBefore = await blockheads.headIndex(token2);
+    const token1BodyBefore = await blockheads.bodyIndex(token1);
+    const token2BodyBefore = await blockheads.bodyIndex(token2);
+    // Signature signs to swap arms but below we'll swap head too, and that should be rejected
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
+      background: false,
+      body: false,
+      head: false,
+      arms: true,
+      face: false,
+      headwear: false,
+    })
+    await expectRevert.unspecified(blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ));
+    let token1HeadAfter = await blockheads.headIndex(token1);
+    let token2HeadAfter = await blockheads.headIndex(token2);
+    expect(token1HeadAfter).to.equal(token1HeadBefore);
+    expect(token2HeadAfter).to.equal(token2HeadBefore);
   })
 
   it("Should allow swapping parts between two owned tokens", async function () {
