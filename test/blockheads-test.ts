@@ -3,6 +3,7 @@ const { ethers } = require("hardhat");
 import { Contract } from "@ethersproject/contracts";
 import { expectRevert } from "@openzeppelin/test-helpers";
 import isSvg from "is-svg";
+import { createSwapSignature } from "./swapSigner";
 
 describe("Blockheads", function () {
   let blockheads: Contract;
@@ -180,6 +181,54 @@ describe("Blockheads", function () {
       // expect(token2BodyAfter).to.equal(token1BodyBefore);
     }
   });
+
+  it("Should allow swapping parts with another user via signature", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    let token1HeadBefore = await blockheads.headIndex(token1);
+    let token2HeadBefore = await blockheads.headIndex(token2);
+    const token1BodyBefore = await blockheads.bodyIndex(token1);
+    const token2BodyBefore = await blockheads.bodyIndex(token2);
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, token1, {
+      background: false,
+      body: false,
+      head: true,
+      arms: false,
+      face: false,
+      headwear: false,
+    })
+    console.log(mainAccount.address)
+    console.log(otherAccount.address)
+    console.log({signature})
+    await blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    );
+    let token1HeadAfter = await blockheads.headIndex(token1);
+    let token2HeadAfter = await blockheads.headIndex(token2);
+    const token1BodyAfter = await blockheads.bodyIndex(token1);
+    const token2BodyAfter = await blockheads.bodyIndex(token2);
+    expect(token1HeadAfter).to.equal(token2HeadBefore);
+    expect(token2HeadAfter).to.equal(token1HeadBefore);
+  })
 
   it("Should allow swapping parts between two owned tokens", async function () {
     const accounts = await ethers.getSigners();

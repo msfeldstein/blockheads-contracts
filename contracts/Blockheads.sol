@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";  
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,6 +12,7 @@ import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
+import "hardhat/console.sol";
 
 /**************                                                                                             
                                                                                                                                                                                                                                      
@@ -74,6 +76,8 @@ interface IERC20 {
 }
 
 contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Mutable {
+    using ECDSA for bytes32;
+
     // Max there will ever be available
     uint256 public constant totalAvailable = 10000;
     // currentlyAvailable for releasing in batches
@@ -81,6 +85,11 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     uint256 public mintCost = 0.05 ether;
     uint256 public nextTokenId = 1; // 1, for friendship
     bool public mintingEnabled = false;
+
+    // EIP-712 signing for swaps between different owners
+    bytes32 public DOMAIN_SEPARATOR;
+    bytes32 public constant COUNTERPARTY_TYPEHASH =
+        keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear)");
 
     /**
     Attributes can be referenced by an index into the labels and image data
@@ -107,6 +116,9 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool headOverridden;
         bool faceOverridden;
         bool headwearOverridden;
+        // Nonce is used for cross-user swaps to ensure that the same signature can't be used to do
+        // more than one swap.
+        uint16 nonce;
     }
 
     // If we store the profession override in the struct above it bumps it over the size limit for a single slot and makes
@@ -151,6 +163,19 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         headDataBlock = _headDataBlock;
         faceDataBlock = _faceDataBlock;
         headwearDataBlock = _headwearDataBlock;
+
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                // This should match the domain you set in your client side signing.
+                keccak256(bytes("BlockheadsSwap")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     // Mint a single blockhead
@@ -294,6 +319,39 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool headwear
     ) public ownsBoth(token1, token2) {
         require(background || body || arms || heads || faces || headwear);
+        _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
+    }
+
+    function swapPartsCrossUser(uint256 token1,
+        uint256 token2,
+        bytes calldata signature,
+        bool background,
+        bool body,
+        bool arms,
+        bool heads,
+        bool faces,
+        bool headwear) public {
+            address otherOwner = ownerOf(token2);
+            bytes32 digest = keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    DOMAIN_SEPARATOR,
+                    keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, token1, background, body, arms, heads, faces, headwear))
+                )
+            );
+            address recoveredAddress = digest.recover(signature);
+            require(recoveredAddress == otherOwner, "Invalid Signature");
+            _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
+        }
+
+    function _doSwapParts(uint256 token1,
+        uint256 token2,
+        bool background,
+        bool body,
+        bool arms,
+        bool heads,
+        bool faces,
+        bool headwear) private {
         if (background) {
             uint32 newBG1 = backgroundIndex(token2);
             uint32 newBG2 = backgroundIndex(token1);
@@ -342,6 +400,8 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
             overrides[token1].headwearOverridden = true;
             overrides[token2].headwearOverridden = true;
         }
+        overrides[token1].nonce++;
+        overrides[token2].nonce++;
         (uint256 metadataHash1,) = tokenMetadataHash(token1);
         (uint256 metadataHash2,) = tokenMetadataHash(token2);
         emit TokenMetadataChanged(token1, metadataHash1, 0);
