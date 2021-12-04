@@ -91,7 +91,10 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     // swap parts between two tokens that aren't owned by the same person.  UserA can swap with a token
     // owned by userB as long as userB provides a signature with the two token IDs and the swaps they wish
     // to approve.
+    // DOMAIN_SEPARATOR is static data included in the digest to be signed/verified defining this contract and deployment so that a signature 
+    // can't be used on a different contract or chain.
     bytes32 public DOMAIN_SEPARATOR;
+    // The TYPEHASH is the description of the shape of the data that needs to exactly match the shape of the data as we sign it.
     bytes32 public constant COUNTERPARTY_TYPEHASH =
         keccak256("Swap(uint256 ownersToken,uint256 otherToken,bool background,bool body,bool arms,bool head,bool face,bool headwear,uint16 nonce)");
 
@@ -409,6 +412,9 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
             overrides[token1].headwearOverridden = true;
             overrides[token2].headwearOverridden = true;
         }
+        // Nonces should be incremented even if we didn't use signatures.
+        // Once anything about the token is changed, any signatures should
+        // be invalidated.
         overrides[token1].nonce++;
         overrides[token2].nonce++;
         (uint256 metadataHash1,) = tokenMetadataHash(token1);
