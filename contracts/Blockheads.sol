@@ -382,11 +382,12 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool faces,
         bool headwear) public {
             // The signature is for the final results so we attempt the swap and then verify
-            // that the other use has signed for the final results, and roll back if something else happened
+            // that the other user has signed for the final results, and roll back if something else happened
             _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
             address otherOwner = ownerOf(token2);
             // We create a digest message that is packed exactly like we pack it on the client side, and then
             // recover the signature from it and expect it to match the other user.
+            // This digest should encode the post-swap state of the blockhead, and match what was signed for.
             bytes32 digest = createDigest(token2, layerValues(token2));
             address recoveredAddress = digest.recover(signature);
             require(recoveredAddress == otherOwner);
