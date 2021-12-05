@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";  
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -11,6 +12,7 @@ import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
+import "hardhat/console.sol";
 
 /**************                                                                                             
                                                                                                                                                                                                                                      
@@ -74,6 +76,8 @@ interface IERC20 {
 }
 
 contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Mutable {
+    using ECDSA for bytes32;
+
     // Max there will ever be available
     uint256 public constant totalAvailable = 10000;
     // currentlyAvailable for releasing in batches
@@ -81,6 +85,30 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     uint256 public mintCost = 0.05 ether;
     uint256 public nextTokenId = 1; // 1, for friendship
     bool public mintingEnabled = false;
+
+    // EIP-712 signing for swaps between different owners.
+    // In order to make easier and cheaper swapping, we add a swapPartsCrossUser function that can
+    // swap parts between two tokens that aren't owned by the same person.  UserA can swap with a token
+    // owned by userB as long as userB provides a signature with the two token IDs and the swaps they wish
+    // to approve.
+    // DOMAIN_SEPARATOR is static data included in the digest to be signed/verified defining this contract and deployment so that a signature 
+    // can't be used on a different contract or chain.
+    bytes32 public DOMAIN_SEPARATOR;
+    // The TYPEHASH is the description of the shape of the data that needs to exactly match the shape of the data as we sign it.
+    bytes32 public constant COUNTERPARTY_TYPEHASH =
+        keccak256("Swap(uint256 tokenId,uint32 background,uint32 body,uint32 arms,uint32 head,uint32 face,uint32 headwear,uint16 nonce)");
+
+    // Used in swaps to specify the desired end result of a signature based
+    // cross user swap
+    struct BlockheadLayerState {
+        uint32 background;
+        uint32 body;
+        uint32 arms;
+        uint32 head;
+        uint32 face;
+        uint32 headwear;
+        uint16 nonce;
+    }
 
     /**
     Attributes can be referenced by an index into the labels and image data
@@ -107,6 +135,9 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool headOverridden;
         bool faceOverridden;
         bool headwearOverridden;
+        // Nonce is used for cross-user swaps to ensure that the same signature can't be used to do
+        // more than one swap.
+        uint16 nonce;
     }
 
     // If we store the profession override in the struct above it bumps it over the size limit for a single slot and makes
@@ -151,6 +182,19 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         headDataBlock = _headDataBlock;
         faceDataBlock = _faceDataBlock;
         headwearDataBlock = _headwearDataBlock;
+
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                ),
+                // This should match the domain you set in your client side signing.
+                keccak256(bytes("BlockheadsSwap")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
     }
 
     // Mint a single blockhead
@@ -283,6 +327,26 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         _;
     }
 
+    // If you want to invalidate a swap signature bump the nonce of your token
+    function invalidateSignatures(uint256 tokenId) public {
+        require(ownerOf(tokenId) == msg.sender);
+        overrides[tokenId].nonce++;
+    }
+
+    // The indices for all layers of the token.  We can't just use overrides because
+    // anything non-overridden will need to use initialValueFor
+    function layerValues(uint256 tokenId) public view returns (BlockheadLayerState memory) {
+        return BlockheadLayerState(
+            backgroundIndex(tokenId),
+            bodyIndex(tokenId),
+            armsIndex(tokenId),
+            headIndex(tokenId),
+            faceIndex(tokenId),
+            headwearIndex(tokenId),
+            overrides[tokenId].nonce
+        );
+    }
+
     function swapParts(
         uint256 token1,
         uint256 token2,
@@ -294,6 +358,52 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         bool headwear
     ) public ownsBoth(token1, token2) {
         require(background || body || arms || heads || faces || headwear);
+        _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
+    }
+
+    function createDigest(uint256 token2, BlockheadLayerState memory swapData) internal view returns (bytes32) {
+        // We need to ensure that the owner of token 2 signed a message approving the exact swap
+        // that's trying to be performed.  We use the nonces to ensure the swap can't be performed twice.
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                keccak256(abi.encode(COUNTERPARTY_TYPEHASH, token2, swapData.background, swapData.body, swapData.arms, swapData.head, swapData.face, swapData.headwear, swapData.nonce))
+            )
+        );
+        return digest;
+    }
+
+    function swapPartsCrossUser(uint256 token1,
+        uint256 token2,
+        bytes calldata signature,
+        bool background,
+        bool body,
+        bool arms,
+        bool heads,
+        bool faces,
+        bool headwear) public {
+            // The signature is for the final results so we attempt the swap and then verify
+            // that the other user has signed for the final results, and roll back if something else happened
+            _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
+            address otherOwner = ownerOf(token2);
+            // We create a digest message that is packed exactly like we pack it on the client side, and then
+            // recover the signature from it and expect it to match the other user.
+            // This digest should encode the post-swap state of the blockhead, and match what was signed for.
+            bytes32 digest = createDigest(token2, layerValues(token2));
+            address recoveredAddress = digest.recover(signature);
+            require(recoveredAddress == otherOwner);
+            
+        }
+
+    function _doSwapParts(uint256 token1,
+        uint256 token2,
+        bool background,
+        bool body,
+        bool arms,
+        bool heads,
+        bool faces,
+        bool headwear) private {
         if (background) {
             uint32 newBG1 = backgroundIndex(token2);
             uint32 newBG2 = backgroundIndex(token1);
@@ -342,6 +452,11 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
             overrides[token1].headwearOverridden = true;
             overrides[token2].headwearOverridden = true;
         }
+        // Nonces should be incremented even if we didn't use signatures.
+        // Once anything about the token is changed, any signatures should
+        // be invalidated.
+        overrides[token1].nonce++;
+        overrides[token2].nonce++;
         (uint256 metadataHash1,) = tokenMetadataHash(token1);
         (uint256 metadataHash2,) = tokenMetadataHash(token2);
         emit TokenMetadataChanged(token1, metadataHash1, 0);

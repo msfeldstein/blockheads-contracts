@@ -1,8 +1,10 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+import { BigNumber } from "@ethersproject/bignumber";
 import { Contract } from "@ethersproject/contracts";
 import { expectRevert } from "@openzeppelin/test-helpers";
 import isSvg from "is-svg";
+import { createSwapSignature } from "./swapSigner";
 
 describe("Blockheads", function () {
   let blockheads: Contract;
@@ -71,7 +73,6 @@ describe("Blockheads", function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
     const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
     await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 2);
     await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
     let balance = await blockheads.balanceOf(mainAccount.address)
@@ -85,7 +86,6 @@ describe("Blockheads", function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
     const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
     await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 1);
     await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
     let balance = await blockheads.balanceOf(mainAccount.address)
@@ -158,8 +158,6 @@ describe("Blockheads", function () {
       );
       let token1HeadBefore = await blockheads.headIndex(token1);
       let token2HeadBefore = await blockheads.headIndex(token2);
-      const token1BodyBefore = await blockheads.bodyIndex(token1);
-      const token2BodyBefore = await blockheads.bodyIndex(token2);
       await blockheads.swapParts(
         token1,
         token2,
@@ -172,14 +170,157 @@ describe("Blockheads", function () {
       );
       let token1HeadAfter = await blockheads.headIndex(token1);
       let token2HeadAfter = await blockheads.headIndex(token2);
-      const token1BodyAfter = await blockheads.bodyIndex(token1);
-      const token2BodyAfter = await blockheads.bodyIndex(token2);
       expect(token1HeadAfter).to.equal(token2HeadBefore);
       expect(token2HeadAfter).to.equal(token1HeadBefore);
-      // expect(token1BodyAfter).to.equal(token2BodyBefore);
-      // expect(token2BodyAfter).to.equal(token1BodyBefore);
     }
   });
+
+  it("Should allow swapping parts with another user via signature", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    // Bump the nonce here so the nonces are different and we actually test that, rather than
+    // them both being 0 and not being tested
+    await blockheads.invalidateSignatures(token1)
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    const token2Values = await blockheads.layerValues(token2)
+    const token1BodyBefore = await blockheads.bodyIndex(token1);
+    const token2BodyBefore = await blockheads.bodyIndex(token2);
+    // Create a swap signature representing the final state where `otherAccount` requests
+    // the body index of token 1.
+    const desiredState = {
+      background: token2Values.background,
+      body: token1BodyBefore, // Take the body value from token1
+      head: token2Values.head,
+      arms: token2Values.arms,
+      face: token2Values.face,
+      headwear: token2Values.headwear,
+      nonce: token2Values.nonce + 1, // Since the signature should be for the final state, we need to use the incremented nonce
+    };
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, desiredState)
+    await blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    );
+    let token1BodyAfter = await blockheads.bodyIndex(token1);
+    let token2BodyAfter = await blockheads.bodyIndex(token2);
+    expect(token1BodyAfter).to.equal(token2BodyBefore);
+    expect(token2BodyAfter).to.equal(token1BodyBefore);
+  })
+
+  it("Can't use the same signature twice", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    // Bump the nonce here so the nonces are different and we actually test that, rather than
+    // them both being 0 and not being tested
+    await blockheads.invalidateSignatures(token1)
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    const token2Values = await blockheads.layerValues(token2)
+    const token1BodyBefore = await blockheads.bodyIndex(token1);
+    // Create a swap signature representing the final state where `otherAccount` requests
+    // the body index of token 1.
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, {
+      background: token2Values.background,
+      body: token1BodyBefore, // Take the body value from token1
+      head: token2Values.head,
+      arms: token2Values.arms,
+      face: token2Values.face,
+      headwear: token2Values.headwear,
+      nonce: token2Values.nonce + 1, // Since the signature should be for the final state, we need to use the incremented nonce,
+    })
+    await blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    );
+    await expectRevert.unspecified(blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ));
+  })
+
+  it("Should not allow swapping different parts than signature signed for", async function() {
+    const accounts = await ethers.getSigners();
+    const mainAccount = accounts[0];
+    const otherAccount = accounts[1]
+    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    await blockheads.connect(otherAccount).mint({ value: ethers.utils.parseEther("0.12") });
+    const token1 = await blockheads.tokenOfOwnerByIndex(
+      mainAccount.address,
+      0
+    );
+    // Bump the nonce here so the nonces are different and we actually test that, rather than
+    // them both being 0 and not being tested
+    await blockheads.invalidateSignatures(token1)
+    const token2 = await blockheads.tokenOfOwnerByIndex(
+      otherAccount.address,
+      0
+    );
+    const token2Values = await blockheads.layerValues(token2)
+    let token1HeadBefore = await blockheads.headIndex(token1);
+    let token1BodyBefore = await blockheads.bodyIndex(token2);
+    // Signature signs to swap body but below we'll swap head too, and that should be rejected
+    const desiredState = {
+      background: token2Values.background,
+      body: token1BodyBefore, // Take the body value from token1
+      head: token1HeadBefore,
+      arms: token2Values.arms,
+      face: token2Values.face,
+      headwear: token2Values.headwear,
+      nonce: token2Values.nonce,
+    }
+    const signature = await createSwapSignature(otherAccount, blockheads.address, token2, desiredState)
+    await expectRevert.unspecified(blockheads.swapPartsCrossUser(
+      token1,
+      token2,
+      signature,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ));
+  })
 
   it("Should allow swapping parts between two owned tokens", async function () {
     const accounts = await ethers.getSigners();
