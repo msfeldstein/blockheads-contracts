@@ -98,7 +98,9 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
     bytes32 public constant COUNTERPARTY_TYPEHASH =
         keccak256("Swap(uint256 tokenId,uint32 background,uint32 body,uint32 arms,uint32 head,uint32 face,uint32 headwear,uint16 nonce)");
 
-    struct SwapData {
+    // Used in swaps to specify the desired end result of a signature based
+    // cross user swap
+    struct BlockheadLayerState {
         uint32 background;
         uint32 body;
         uint32 arms;
@@ -333,8 +335,8 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
 
     // The indices for all layers of the token.  We can't just use overrides because
     // anything non-overridden will need to use initialValueFor
-    function layerValues(uint256 tokenId) public view returns (SwapData memory) {
-        return SwapData(
+    function layerValues(uint256 tokenId) public view returns (BlockheadLayerState memory) {
+        return BlockheadLayerState(
             backgroundIndex(tokenId),
             bodyIndex(tokenId),
             armsIndex(tokenId),
@@ -359,7 +361,7 @@ contract Blockheads is ERC721Tradable, ERC2981ContractWideRoyalties, IERC721Muta
         _doSwapParts(token1, token2, background, body, arms, heads, faces, headwear);
     }
 
-    function createDigest(uint256 token2, SwapData memory swapData) internal view returns (bytes32) {
+    function createDigest(uint256 token2, BlockheadLayerState memory swapData) internal view returns (bytes32) {
         // We need to ensure that the owner of token 2 signed a message approving the exact swap
         // that's trying to be performed.  We use the nonces to ensure the swap can't be performed twice.
         bytes32 digest = keccak256(

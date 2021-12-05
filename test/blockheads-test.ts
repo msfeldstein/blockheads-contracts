@@ -187,7 +187,7 @@ describe("Blockheads", function () {
     );
     // Bump the nonce here so the nonces are different and we actually test that, rather than
     // them both being 0 and not being tested
-    await blockheads.bumpNonce(token1)
+    await blockheads.invalidateSignatures(token1)
     const token2 = await blockheads.tokenOfOwnerByIndex(
       otherAccount.address,
       0
@@ -236,7 +236,7 @@ describe("Blockheads", function () {
     );
     // Bump the nonce here so the nonces are different and we actually test that, rather than
     // them both being 0 and not being tested
-    await blockheads.bumpNonce(token1)
+    await blockheads.invalidateSignatures(token1)
     const token2 = await blockheads.tokenOfOwnerByIndex(
       otherAccount.address,
       0
@@ -290,7 +290,7 @@ describe("Blockheads", function () {
     );
     // Bump the nonce here so the nonces are different and we actually test that, rather than
     // them both being 0 and not being tested
-    await blockheads.bumpNonce(token1)
+    await blockheads.invalidateSignatures(token1)
     const token2 = await blockheads.tokenOfOwnerByIndex(
       otherAccount.address,
       0
