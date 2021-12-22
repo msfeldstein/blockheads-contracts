@@ -6,48 +6,49 @@ import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
 
-/**************                                                                                             
+/**************                                                                                             
                                                                                                                                                                                                                                      
 
 
 
 
-                                                                
-                                ████████████████                                
-                                ██            ██                                
-                           ▐████████████████████████▌                           
-                         ▐██                        ▐██                         
-                       ██                              ██                       
-                       ██                              ██                       
-                       ██                              ██                       
-                       ██       ████▌                  ██                       
-                       ██       ████▌       ████▌      ██                       
-                       ██                              ██                       
-                       ██                              ██                       
-                       ██          ██       ██         ██                       
-                       ██            ███████           ██
-                       ██                              ██                       
-                         ▐██                        ▐██            
-                            ▐███████████████████████▌                         
-                                ██            ██
-                  █████  ▐████████████████████████████▌  █████                
-                ██     ██                              ██     ██  
-              ██       ██                              ██       ██             
-              ██       ██                              ██       ██            
-           ▐██       ██                                  ██▌      ██▌           
-                                                                                
-     ▄▄▄▄▄   ▄▄▄  ▄▄▄▄    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ ▄▄▄  ▄▄▄▄▄▄   ▄▄▄▄ ▄▄▄▄▄▄    ▄▄▄▄     
-    █     █ █   █▀    █▄█▀   ▐█  █   █   █  ▀▄█▌     ██▀    █       ██▀    ▐█   
-   █▌ ▀▀  ██  ▄█▌ ██▌  █   ████    ▄██      ▐██   ▀▀██   █  █  ▐██   ██  ▀▀█▄   
-   █  ▀▀  █▌  ▀▀▌      ██     █▌     █   ██  █   ▀▀▀█▌  ▄▄  ██      █▌  ▀   █▌  
-   ▀█▄▄▄▄█▀█▄▄▄█▀█▄▄▄██▀▀██▄▄█▀█▄██▄███▄█▀█▄▀▀█▄▄▄▄▄█▀██▀█▄███▄▄▄▄▄███▄▄▄▄██▀   
-                                                                                
+                                                                
+                                ████████████████                                
+                                ██            ██                                
+                           ▐████████████████████████▌                           
+                         ▐██                        ▐██                         
+                       ██                              ██                       
+                       ██                              ██                       
+                       ██                              ██                       
+                       ██       ████▌                  ██                       
+                       ██       ████▌       ████▌      ██                       
+                       ██                              ██                       
+                       ██                              ██                       
+                       ██          ██       ██         ██                       
+                       ██            ███████           ██
+                       ██                              ██                       
+                         ▐██                        ▐██            
+                            ▐███████████████████████▌                         
+                                ██            ██
+                  █████  ▐████████████████████████████▌  █████                
+                ██     ██                              ██     ██  
+              ██       ██                              ██       ██             
+              ██       ██                              ██       ██            
+           ▐██       ██                                  ██▌      ██▌           
+                                                                                
+     ▄▄▄▄▄   ▄▄▄  ▄▄▄▄    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ ▄▄▄  ▄▄▄▄▄▄   ▄▄▄▄ ▄▄▄▄▄▄    ▄▄▄▄     
+    █     █ █   █▀    █▄█▀   ▐█  █   █   █  ▀▄█▌     ██▀    █       ██▀    ▐█   
+   █▌ ▀▀  ██  ▄█▌ ██▌  █   ████    ▄██      ▐██   ▀▀██   █  █  ▐██   ██  ▀▀█▄   
+   █  ▀▀  █▌  ▀▀▌      ██     █▌     █   ██  █   ▀▀▀█▌  ▄▄  ██      █▌  ▀   █▌  
+   ▀█▄▄▄▄█▀█▄▄▄█▀█▄▄▄██▀▀██▄▄█▀█▄██▄███▄█▀█▄▀▀█▄▄▄▄▄█▀██▀█▄███▄▄▄▄▄███▄▄▄▄██▀   
+                                                                                
 
 
 
@@ -64,19 +65,21 @@ interface ImageDataBlock {
     function getLabel(uint256 slot) external pure returns (string memory);
 }
 
-// ERC20 used for the 'withdrawERC20' just-in-case function, there is no actual erc20 involved here.
-interface IERC20 {
-    function transfer(address recipient, uint256 amount)
-        external
-        returns (bool);
-
-    function balanceOf(address account) external view returns (uint256);
+interface PartMaker {
+    function mintPart(
+        address receiver,
+        address packAddress,
+        uint16 season,
+        uint16 index,
+        uint16 layerNumber
+    ) external;
 }
 
 contract Blockheads is
     ERC721Tradable,
     ERC2981ContractWideRoyalties,
-    IERC721Mutable
+    IERC721Mutable,
+    ReentrancyGuard
 {
     address[] backgroundPacks;
     address[] bodyPacks;
@@ -111,12 +114,73 @@ contract Blockheads is
     // Birth registry is a mapping of taken names so each blockhead has a unique name.
     mapping(string => bool) birthRegistry;
 
+    uint256 public nextTokenId = 10000;
+    PartMaker partMaker;
+
     // Constructor requires the proxy for opensea, and all the data blocks
     constructor(address proxyRegistryAddress)
         ERC721Tradable("Blockheads World", "BLOK", proxyRegistryAddress)
     {
         // 5% royalties for ERC2981.  Not sure if anyone supports this yet.
         _setRoyalties(msg.sender, 500);
+    }
+
+    function initialize(address partMakerAddress) external {
+        require(partMaker == PartMaker(address(0)));
+        partMaker = PartMaker(partMakerAddress);
+    }
+
+    function mint() external payable {
+        _safeMint(msg.sender, nextTokenId);
+        nextTokenId++;
+    }
+
+    function separate(uint256 tokenId) external nonReentrant {
+        require(ownerOf(tokenId) == msg.sender);
+        Blockhead memory blockhead = blockheads[tokenId];
+        partMaker.mintPart(
+            msg.sender,
+            backgroundPacks[blockhead.background.season],
+            blockhead.background.season,
+            blockhead.background.index,
+            0
+        );
+        partMaker.mintPart(
+            msg.sender,
+            bodyPacks[blockhead.body.season],
+            blockhead.body.season,
+            blockhead.body.index,
+            1
+        );
+        partMaker.mintPart(
+            msg.sender,
+            armsPacks[blockhead.arms.season],
+            blockhead.arms.season,
+            blockhead.arms.index,
+            2
+        );
+        partMaker.mintPart(
+            msg.sender,
+            headPacks[blockhead.head.season],
+            blockhead.head.season,
+            blockhead.head.index,
+            3
+        );
+        partMaker.mintPart(
+            msg.sender,
+            facePacks[blockhead.face.season],
+            blockhead.face.season,
+            blockhead.face.index,
+            4
+        );
+        partMaker.mintPart(
+            msg.sender,
+            headwearPacks[blockhead.headwear.season],
+            blockhead.headwear.season,
+            blockhead.headwear.index,
+            5
+        );
+        _burn(tokenId);
     }
 
     // Withdraw balance to the owners
@@ -128,11 +192,6 @@ contract Blockheads is
         // This forwards all available gas. Be sure to check the return value!
         (bool success, ) = msg.sender.call{value: address(this).balance}("");
         require(success, "Transfer failed.");
-    }
-
-    function withdrawERC20(address tokenContract) external onlyOwner {
-        IERC20 tc = IERC20(tokenContract);
-        tc.transfer(owner(), tc.balanceOf(address(this)));
     }
 
     function random(bytes memory input) internal pure returns (uint256) {
@@ -369,7 +428,7 @@ contract Blockheads is
         address body,
         address arms,
         address head,
-        address face, 
+        address face,
         address headwear
     ) public onlyOwner {
         backgroundPacks.push(background);
