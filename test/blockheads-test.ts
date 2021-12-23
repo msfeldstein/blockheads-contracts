@@ -157,7 +157,7 @@ describe("Blockheads", function () {
       await blockheads.separate(tokenId);
       const partBalance = await blockheadsParts.balanceOf(mainAccount.address);
       expect(partBalance).to.equal(6);
-      const metadata = await blockheadsParts.tokenURI(4);
+      const metadata = await blockheadsParts.tokenURI(2);
       console.log(metadata);
       const json = JSON.parse(
         Buffer.from(metadata.split(",")[1], "base64").toString()

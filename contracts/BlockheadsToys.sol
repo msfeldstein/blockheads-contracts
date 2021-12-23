@@ -131,12 +131,12 @@ contract BlockheadsToys is
 
     function mint() external payable {
         blockheads[nextTokenId].name = "Blockhead";
-        blockheads[nextTokenId].layers[0] = Layer(0, 1);
-        blockheads[nextTokenId].layers[1] = Layer(0, 2);
-        blockheads[nextTokenId].layers[2] = Layer(0, 3);
-        blockheads[nextTokenId].layers[3] = Layer(0, 4);
-        blockheads[nextTokenId].layers[4] = Layer(0, 5);
-        blockheads[nextTokenId].layers[5] = Layer(0, 6);
+        blockheads[nextTokenId].layers[0] = Layer(0, 2);
+        blockheads[nextTokenId].layers[1] = Layer(0, 3);
+        blockheads[nextTokenId].layers[2] = Layer(0, 4);
+        blockheads[nextTokenId].layers[3] = Layer(0, 5);
+        blockheads[nextTokenId].layers[4] = Layer(0, 6);
+        blockheads[nextTokenId].layers[5] = Layer(0, 17);
 
         _safeMint(msg.sender, nextTokenId);
 
