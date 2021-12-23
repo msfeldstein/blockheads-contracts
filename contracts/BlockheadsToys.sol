@@ -1,5 +1,5 @@
 // //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
@@ -12,6 +12,7 @@ import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
+import "hardhat/console.sol";
 
 /**************                                                                                             
                                                                                                                                                                                                                                      
@@ -75,19 +76,26 @@ interface PartMaker {
     ) external;
 }
 
-contract Blockheads is
+contract BlockheadsToys is
     ERC721Tradable,
     ERC2981ContractWideRoyalties,
     IERC721Mutable,
     ReentrancyGuard
 {
-    address[] backgroundPacks;
-    address[] bodyPacks;
-    address[] armsPacks;
-    address[] headPacks;
-    address[] facePacks;
-    address[] headwearPacks;
-    address[] professionPacks;
+    enum LayerIndex {
+        BACKGROUND,
+        BODY,
+        ARMS,
+        HEAD,
+        FACE,
+        HEADWEAR,
+        PROFESSION
+    }
+
+    uint256 constant LAYER_COUNT = 7;
+
+    // Packs are the ImageDataBlocks for each of the layers indexed above
+    address[][LAYER_COUNT] packs;
 
     /** Layer represents a single layer of a composition, ie background, head, face, etc  */
     struct Layer {
@@ -95,17 +103,12 @@ contract Blockheads is
         uint16 season;
         // Index of the represented item in the pack
         uint16 index;
+        // The index of the layer in the context of the toy, matches LayerIndex above
+        LayerIndex layerIndex;
     }
 
     struct Blockhead {
-        Layer background;
-        Layer body;
-        Layer arms;
-        Layer head;
-        Layer face;
-        Layer headwear;
-        // Profession is a layer that we never call getData on, only getLabel so that we can have expansion packs of professions.
-        Layer profession;
+        Layer[7] layers;
         string name;
         bool isMintInBox;
     }
@@ -125,8 +128,7 @@ contract Blockheads is
         _setRoyalties(msg.sender, 500);
     }
 
-    function initialize(address partMakerAddress) external {
-        require(partMaker == PartMaker(address(0)));
+    function setPartMaker(address partMakerAddress) external onlyOwner {
         partMaker = PartMaker(partMakerAddress);
     }
 
@@ -138,48 +140,18 @@ contract Blockheads is
     function separate(uint256 tokenId) external nonReentrant {
         require(ownerOf(tokenId) == msg.sender);
         Blockhead memory blockhead = blockheads[tokenId];
-        partMaker.mintPart(
-            msg.sender,
-            backgroundPacks[blockhead.background.season],
-            blockhead.background.season,
-            blockhead.background.index,
-            0
-        );
-        partMaker.mintPart(
-            msg.sender,
-            bodyPacks[blockhead.body.season],
-            blockhead.body.season,
-            blockhead.body.index,
-            1
-        );
-        partMaker.mintPart(
-            msg.sender,
-            armsPacks[blockhead.arms.season],
-            blockhead.arms.season,
-            blockhead.arms.index,
-            2
-        );
-        partMaker.mintPart(
-            msg.sender,
-            headPacks[blockhead.head.season],
-            blockhead.head.season,
-            blockhead.head.index,
-            3
-        );
-        partMaker.mintPart(
-            msg.sender,
-            facePacks[blockhead.face.season],
-            blockhead.face.season,
-            blockhead.face.index,
-            4
-        );
-        partMaker.mintPart(
-            msg.sender,
-            headwearPacks[blockhead.headwear.season],
-            blockhead.headwear.season,
-            blockhead.headwear.index,
-            5
-        );
+        for (uint16 i = 0; i < 6; i++) {
+            console.log("Mint part", i);
+            Layer memory l = blockhead.layers[i];
+            partMaker.mintPart(
+                msg.sender,
+                packs[i][l.season],
+                l.season,
+                l.index,
+                i
+            );
+        }
+
         _burn(tokenId);
     }
 
@@ -222,17 +194,6 @@ contract Blockheads is
             return blockhead.name;
         }
         return string(abi.encodePacked("Blockhead #", Utils.toString(tokenId)));
-    }
-
-    function getProfession(uint256 tokenId)
-        public
-        view
-        returns (string memory)
-    {
-        Blockhead storage blockhead = blockheads[tokenId];
-        return
-            ImageDataBlock(professionPacks[blockhead.profession.season])
-                .getLabel(blockhead.profession.index);
     }
 
     function tokenURI(uint256 tokenId)
@@ -297,18 +258,18 @@ contract Blockheads is
             uint256(
                 keccak256(
                     abi.encode(
-                        bh.background.index,
-                        bh.background.season,
-                        bh.body.index,
-                        bh.body.season,
-                        bh.face.index,
-                        bh.face.season,
-                        bh.head.index,
-                        bh.head.season,
-                        bh.headwear.index,
-                        bh.headwear.season,
-                        bh.profession.index,
-                        bh.profession.season,
+                        bh.layers[uint256(LayerIndex.BACKGROUND)].index,
+                        bh.layers[uint256(LayerIndex.BACKGROUND)].season,
+                        bh.layers[uint256(LayerIndex.BODY)].index,
+                        bh.layers[uint256(LayerIndex.BODY)].season,
+                        bh.layers[uint256(LayerIndex.FACE)].index,
+                        bh.layers[uint256(LayerIndex.FACE)].season,
+                        bh.layers[uint256(LayerIndex.HEAD)].index,
+                        bh.layers[uint256(LayerIndex.HEAD)].season,
+                        bh.layers[uint256(LayerIndex.HEADWEAR)].index,
+                        bh.layers[uint256(LayerIndex.HEADWEAR)].season,
+                        bh.layers[uint256(LayerIndex.PROFESSION)].index,
+                        bh.layers[uint256(LayerIndex.PROFESSION)].season,
                         bh.name
                     )
                 )
@@ -317,12 +278,12 @@ contract Blockheads is
         );
     }
 
-    function dataFor(Layer memory layer, address[] memory packs)
+    function dataFor(Layer memory layer, address[] memory layerPacks)
         private
         pure
         returns (bytes memory)
     {
-        return ImageDataBlock(packs[layer.season]).getData(layer.index);
+        return ImageDataBlock(layerPacks[layer.season]).getData(layer.index);
     }
 
     function getBackgroundData(uint256 tokenId)
@@ -330,23 +291,43 @@ contract Blockheads is
         view
         returns (bytes memory)
     {
-        return dataFor(blockheads[tokenId].background, backgroundPacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.BACKGROUND)],
+                packs[uint256(LayerIndex.BACKGROUND)]
+            );
     }
 
     function getBodyData(uint256 tokenId) public view returns (bytes memory) {
-        return dataFor(blockheads[tokenId].body, bodyPacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.BODY)],
+                packs[uint256(LayerIndex.BODY)]
+            );
     }
 
     function getArmsData(uint256 tokenId) public view returns (bytes memory) {
-        return dataFor(blockheads[tokenId].arms, armsPacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.ARMS)],
+                packs[uint256(LayerIndex.ARMS)]
+            );
     }
 
     function getHeadData(uint256 tokenId) public view returns (bytes memory) {
-        return dataFor(blockheads[tokenId].head, headPacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.HEAD)],
+                packs[uint256(LayerIndex.HEAD)]
+            );
     }
 
     function getFaceData(uint256 tokenId) public view returns (bytes memory) {
-        return dataFor(blockheads[tokenId].face, facePacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.FACE)],
+                packs[uint256(LayerIndex.FACE)]
+            );
     }
 
     function getHeadwearData(uint256 tokenId)
@@ -354,15 +335,19 @@ contract Blockheads is
         view
         returns (bytes memory)
     {
-        return dataFor(blockheads[tokenId].headwear, headwearPacks);
+        return
+            dataFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.HEADWEAR)],
+                packs[uint256(LayerIndex.HEADWEAR)]
+            );
     }
 
-    function labelFor(Layer memory layer, address[] memory packs)
+    function labelFor(Layer memory layer, address[] memory layerPacks)
         private
         pure
         returns (string memory)
     {
-        return ImageDataBlock(packs[layer.season]).getLabel(layer.index);
+        return ImageDataBlock(layerPacks[layer.season]).getLabel(layer.index);
     }
 
     function getBackgroundLabel(uint256 tokenId)
@@ -370,23 +355,43 @@ contract Blockheads is
         view
         returns (string memory)
     {
-        return labelFor(blockheads[tokenId].background, backgroundPacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.BACKGROUND)],
+                packs[uint256(LayerIndex.BACKGROUND)]
+            );
     }
 
     function getBodyLabel(uint256 tokenId) public view returns (string memory) {
-        return labelFor(blockheads[tokenId].body, bodyPacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.BODY)],
+                packs[uint256(LayerIndex.BODY)]
+            );
     }
 
     function getArmsLabel(uint256 tokenId) public view returns (string memory) {
-        return labelFor(blockheads[tokenId].arms, armsPacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.ARMS)],
+                packs[uint256(LayerIndex.ARMS)]
+            );
     }
 
     function getHeadLabel(uint256 tokenId) public view returns (string memory) {
-        return labelFor(blockheads[tokenId].head, headPacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.HEAD)],
+                packs[uint256(LayerIndex.HEAD)]
+            );
     }
 
     function getFaceLabel(uint256 tokenId) public view returns (string memory) {
-        return labelFor(blockheads[tokenId].face, facePacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.FACE)],
+                packs[uint256(LayerIndex.FACE)]
+            );
     }
 
     function getHeadwearLabel(uint256 tokenId)
@@ -394,33 +399,27 @@ contract Blockheads is
         view
         returns (string memory)
     {
-        return labelFor(blockheads[tokenId].headwear, headwearPacks);
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.HEADWEAR)],
+                packs[uint256(LayerIndex.HEADWEAR)]
+            );
+    }
+
+    function getProfession(uint256 tokenId)
+        public
+        view
+        returns (string memory)
+    {
+        return
+            labelFor(
+                blockheads[tokenId].layers[uint256(LayerIndex.PROFESSION)],
+                packs[uint256(LayerIndex.PROFESSION)]
+            );
     }
 
     function isMintInBox(uint256 tokenId) public view returns (bool) {
         return blockheads[tokenId].isMintInBox;
-    }
-
-    function bridgeFromV1(
-        address holder,
-        uint256 tokenId,
-        uint16 backgroundIndex,
-        uint16 bodyIndex,
-        uint16 armsIndex,
-        uint16 headIndex,
-        uint16 faceIndex,
-        uint16 headwearIndex
-    ) public onlyOwner {
-        _safeMint(holder, tokenId);
-        Blockhead storage bh = blockheads[tokenId];
-        // These are all from the first season, pack0.
-        bh.background = Layer(0, backgroundIndex);
-        bh.body = Layer(0, bodyIndex);
-        bh.arms = Layer(0, armsIndex);
-        bh.head = Layer(0, headIndex);
-        bh.face = Layer(0, faceIndex);
-        bh.headwear = Layer(0, headwearIndex);
-        blockheads[tokenId] = bh;
     }
 
     function publishSeason(
@@ -431,12 +430,12 @@ contract Blockheads is
         address face,
         address headwear
     ) public onlyOwner {
-        backgroundPacks.push(background);
-        bodyPacks.push(body);
-        armsPacks.push(arms);
-        headPacks.push(head);
-        facePacks.push(face);
-        headwearPacks.push(headwear);
+        packs[uint256(LayerIndex.BACKGROUND)].push(background);
+        packs[uint256(LayerIndex.BODY)].push(body);
+        packs[uint256(LayerIndex.ARMS)].push(arms);
+        packs[uint256(LayerIndex.HEAD)].push(head);
+        packs[uint256(LayerIndex.FACE)].push(face);
+        packs[uint256(LayerIndex.HEADWEAR)].push(headwear);
     }
 
     function setRoyalties(address newRoyaltiesAddr) public onlyOwner {

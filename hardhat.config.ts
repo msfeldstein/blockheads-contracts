@@ -1,13 +1,13 @@
 import { HardhatUserConfig } from "hardhat/types";
 import { task } from "hardhat/config";
+import "@typechain/hardhat";
 import "@nomiclabs/hardhat-ethers";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-gas-reporter";
 import "hardhat-deploy";
 import "hardhat-contract-sizer";
-import "dotenv/config"
-import { ethers } from "ethers";
+import "dotenv/config";
 
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
@@ -25,7 +25,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  */
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.4",
+    version: "0.8.5",
     settings: {
       optimizer: {
         enabled: true,
@@ -37,7 +37,7 @@ const config: HardhatUserConfig = {
     enabled: process.env.REPORT_GAS ? true : false,
     gasPrice: 70,
     currency: "ETH",
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
   },
   networks: {
     hardhat: {
@@ -48,17 +48,13 @@ const config: HardhatUserConfig = {
     },
     rinkeby: {
       url: process.env.ALCHEMY_RINKEBY_URL,
-      accounts: [
-        process.env.RINKEBY_SECRET,
-      ],
+      accounts: [process.env.RINKEBY_SECRET!],
     },
     mainnet: {
-      gasPrice: ethers.utils.parseUnits("70", "gwei").toNumber(),
+      // gasPrice: ethers.utils.parseUnits("70", "gwei").toNumber(),
       url: process.env.ALCHEMY_MAINNET_URL,
-      accounts: [
-        process.env.DEPLOYER_SECRET_KEY
-      ]
-    }
+      accounts: [process.env.DEPLOYER_SECRET_KEY!],
+    },
   },
   namedAccounts: {
     deployer: {
@@ -73,6 +69,5 @@ const config: HardhatUserConfig = {
   paths: {
     deployments: "./deployments",
   },
-  
 };
 export default config;

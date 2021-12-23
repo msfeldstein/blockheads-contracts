@@ -1,15 +1,31 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-import { Contract } from "@ethersproject/contracts";
-import { expectRevert } from "@openzeppelin/test-helpers";
+import chai, { expect } from "chai";
+import { ethers } from "hardhat";
+import { BlockheadsToys, BlockheadsParts } from "../typechain";
+import { solidity } from "ethereum-waffle";
+
+chai.use(solidity);
+
 import isSvg from "is-svg";
 
 describe("Blockheads", function () {
-  let blockheads: Contract;
+  let blockheads: BlockheadsToys;
+  let blockheadsParts: BlockheadsParts;
 
   beforeEach(async function () {
     // Opensea's Rinkeby address, this shouldn't matter though
     let proxyRegistryAddress = "0xf57b2c51ded3a29e6891aba85459d600256cf317";
+
+    const Blockheads = await ethers.getContractFactory("BlockheadsToys");
+    blockheads = await Blockheads.deploy(proxyRegistryAddress);
+    await blockheads.deployed();
+
+    const BlockheadsParts = await ethers.getContractFactory("BlockheadsParts");
+    blockheadsParts = await BlockheadsParts.deploy(proxyRegistryAddress);
+    await blockheadsParts.deployed();
+    // @ts-ignore
+    await blockheadsParts.registerFriendContract(blockheads.address);
+    // @ts-ignore
+    await blockheads.setPartMaker(blockheadsParts.address);
 
     const dataBlocks = [
       "Background",
@@ -29,15 +45,14 @@ describe("Blockheads", function () {
       await dataBlock.deployed();
       dataBlockAddrs.push(dataBlock.address);
     }
-
-    const Blockheads = await ethers.getContractFactory("Blockheads");
-    blockheads = await Blockheads.deploy(
-      proxyRegistryAddress,
-      ...dataBlockAddrs
+    await blockheads.publishSeason(
+      dataBlockAddrs[0],
+      dataBlockAddrs[1],
+      dataBlockAddrs[2],
+      dataBlockAddrs[3],
+      dataBlockAddrs[4],
+      dataBlockAddrs[5]
     );
-    await blockheads.deployed();
-    await blockheads.setMintingEnabled(true);
-    await blockheads.setCurrentlyAvailable(100);
   });
 
   it("should return valid metadata", async function () {
@@ -57,43 +72,16 @@ describe("Blockheads", function () {
     expect(isSvg(svg)).to.be.true;
   });
 
-  it("Should buy 4 get 1 free", async function () {
+  it("Should allow minting", async function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
-    const mintCost = await blockheads.mintCost();
-    const mintPackCost = mintCost.mul(4);
-    await blockheads.buy4get1free({ value: mintPackCost });
-    const numOwned = await blockheads.balanceOf(mainAccount.address);
-    expect(numOwned).to.equal(5);
+    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
+    let balance = await blockheads.balanceOf(mainAccount.address);
+    expect(balance).to.equal(1);
+    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
+    balance = await blockheads.balanceOf(mainAccount.address);
+    expect(balance).to.equal(2);
   });
-
-  it("Should allow minting up to the limit", async function() {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
-    await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 2);
-    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
-    let balance = await blockheads.balanceOf(mainAccount.address)
-    expect(balance).to.equal(1)
-    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
-    balance = await blockheads.balanceOf(mainAccount.address)
-    expect(balance).to.equal(2)
-  })
-
-  it ("Shouldn't allow minting past the limit", async function() {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    const nextTokenId = await blockheads.nextTokenId()
-    console.log("Next token id", nextTokenId)
-    await blockheads.setCurrentlyAvailable(nextTokenId.toNumber() + 1);
-    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
-    let balance = await blockheads.balanceOf(mainAccount.address)
-    expect(balance).to.equal(1)
-    await blockheads.mint({ value: ethers.utils.parseEther("0.05") });
-    balance = await blockheads.balanceOf(mainAccount.address)
-    expect(balance).to.equal(2)
-  })
 
   it("Shouldn't allow non owners to change name", async function () {
     const accounts = await ethers.getSigners();
@@ -101,9 +89,7 @@ describe("Blockheads", function () {
     const otherAccount = accounts[2];
     await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
     const token = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
-    await expectRevert.unspecified(
-      blockheads.connect(otherAccount).setName(token, "Bad")
-    );
+    await expect(blockheads.connect(otherAccount).setName(token, "Bad"));
   });
 
   it("Should allow owners to change name", async function () {
@@ -132,7 +118,7 @@ describe("Blockheads", function () {
       Buffer.from(metadata.split(",")[1], "base64").toString()
     );
     expect(json.name).to.equal("Good");
-    await expectRevert.unspecified(blockheads.setName(token2, "Good"));
+    await expect(blockheads.setName(token2, "Good")).to.be.reverted;
     await blockheads.setName(token, "Something else");
     await blockheads.setName(token2, "Good");
     const metadata2 = await blockheads.tokenURI(token2);
@@ -142,189 +128,32 @@ describe("Blockheads", function () {
     expect(json2.name).to.equal("Good");
   });
 
-  it("Should allow batched part swapping", async function () {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    for (var i = 0; i < 10; i++) {
-      const token1 = await blockheads.tokenOfOwnerByIndex(
-        mainAccount.address,
-        0
-      );
-      const token2 = await blockheads.tokenOfOwnerByIndex(
-        mainAccount.address,
-        1
-      );
-      let token1HeadBefore = await blockheads.headIndex(token1);
-      let token2HeadBefore = await blockheads.headIndex(token2);
-      const token1BodyBefore = await blockheads.bodyIndex(token1);
-      const token2BodyBefore = await blockheads.bodyIndex(token2);
-      await blockheads.swapParts(
-        token1,
-        token2,
-        false,
-        false,
-        false,
-        true,
-        false,
-        false
-      );
-      let token1HeadAfter = await blockheads.headIndex(token1);
-      let token2HeadAfter = await blockheads.headIndex(token2);
-      const token1BodyAfter = await blockheads.bodyIndex(token1);
-      const token2BodyAfter = await blockheads.bodyIndex(token2);
-      expect(token1HeadAfter).to.equal(token2HeadBefore);
-      expect(token2HeadAfter).to.equal(token1HeadBefore);
-      // expect(token1BodyAfter).to.equal(token2BodyBefore);
-      // expect(token2BodyAfter).to.equal(token1BodyBefore);
-    }
-  });
-
-  it("Should allow swapping parts between two owned tokens", async function () {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    // This list needs to match the order of booleans in swapParts
-    const getFunctions = [
-      "backgroundIndex",
-      "bodyIndex",
-      "armsIndex",
-      "headIndex",
-      "faceIndex",
-      "headwearIndex",
-    ];
-
-    for (var i = 0; i < getFunctions.length; i++) {
-      const getFn = getFunctions[i];
-      let swapArgs = [false, false, false, false, false, false];
-      swapArgs[i] = true;
-
-      await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-      await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-      const token1 = await blockheads.tokenOfOwnerByIndex(
-        mainAccount.address,
-        i * 2
-      );
-      const token2 = await blockheads.tokenOfOwnerByIndex(
-        mainAccount.address,
-        i * 2 + 1
-      );
-      let token1Before = await blockheads[getFn](token1);
-      let token2Before = await blockheads[getFn](token2);
-      const bodyBefore = await blockheads.bodyIndex(token1);
-      await blockheads.swapParts(token1, token2, ...swapArgs);
-      let token1After = await blockheads[getFn](token1);
-      let token2After = await blockheads[getFn](token2);
-      const bodyAfter = await blockheads.bodyIndex(token1);
-      expect(token1After).to.equal(token2Before);
-      expect(token2After).to.equal(token1Before);
-      // Ensure body hasn't changed (as long as its not us trying to change the body)
-      if (i != 1) {
-        expect(bodyBefore).to.equal(bodyAfter);
-      }
-      // Run it again to see if you can swap back from already overriden ones
-      token1Before = await blockheads[getFn](token1);
-      token2Before = await blockheads[getFn](token2);
-      await blockheads.swapParts(token1, token2, ...swapArgs);
-      token1After = await blockheads[getFn](token1);
-      token2After = await blockheads[getFn](token2);
-      expect(token1After).to.equal(token2Before);
-      expect(token2After).to.equal(token1Before);
-    }
-  });
-
-  it("Shouldn't allow swapping parts if you don't own the other token", async function () {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    const otherAccount = accounts[1];
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    await blockheads
-      .connect(otherAccount)
-      .mint({ value: ethers.utils.parseEther("0.12") });
-    const token1 = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
-    const token2 = await blockheads.tokenOfOwnerByIndex(
-      otherAccount.address,
-      0
-    );
-    const token1HeadBefore = await blockheads.headIndex(token1);
-    const token2HeadBefore = await blockheads.headIndex(token2);
-    await expectRevert.unspecified(
-      blockheads.swapParts(
-        token1,
-        token2,
-        false,
-        false,
-        false,
-        true,
-        false,
-        false
-      )
-    );
-    const token1HeadAfter = await blockheads.headIndex(token1);
-    const token2HeadAfter = await blockheads.headIndex(token2);
-    expect(token1HeadAfter).to.equal(token1HeadBefore);
-    expect(token2HeadAfter).to.equal(token2HeadBefore);
-  });
-
-  it("Should emit an event and change metadata hash on swap", async function () {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    const token1 = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
-    const token2 = await blockheads.tokenOfOwnerByIndex(
-      mainAccount.address,
-      1
-    );
-    const [token1MetadataHashBefore] = await blockheads.tokenMetadataHash(token1);
-    await 
-      expect(blockheads.swapParts(
-        token1,
-        token2,
-        false,
-        true,
-        false,
-        true,
-        false,
-        false
-    )).to.emit(blockheads, "TokenMetadataChanged");
-    const [token1MetadataHashAfter] = await blockheads.tokenMetadataHash(token1);
-    expect(token1MetadataHashAfter).not.to.equal(token1MetadataHashBefore)
-  });
-
   it("Can be withdrawn by owning account", async function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
-    await blockheads.withdraw();
+    await blockheads.connect(mainAccount).withdraw();
   });
 
   it("Can't be withdrawn by random account", async function () {
     const accounts = await ethers.getSigners();
     const otherAccount = accounts[1];
-    expectRevert.unspecified(blockheads.connect(otherAccount).withdraw());
+    await expect(blockheads.connect(otherAccount).withdraw()).to.be.reverted;
   });
 
-  it("Should be mint in box before any changes and not afterward", async function() {
-    const accounts = await ethers.getSigners();
-    const mainAccount = accounts[0];
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-    const token1 = await blockheads.tokenOfOwnerByIndex(
-      mainAccount.address,
-      0
-    );
-    const token2 = await blockheads.tokenOfOwnerByIndex(
-      mainAccount.address,
-      1
-    );
-    expect(await blockheads.isMintInBox(token1)).to.be.true
-    expect(await blockheads.isMintInBox(token2)).to.be.true
-
-    await blockheads.swapParts(token1, token2, true, false, false, false, false, false);
-    expect(await blockheads.isMintInBox(token1)).to.be.false
-    expect(await blockheads.isMintInBox(token2)).to.be.false
-  })
-
+  describe.only("Separation", async function () {
+    it("Should be broken aparty into pieces and recombined", async function () {
+      const accounts = await ethers.getSigners();
+      const mainAccount = accounts[0];
+      await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+      const tokenId = await blockheads.tokenOfOwnerByIndex(
+        mainAccount.address,
+        0
+      );
+      await blockheads.separate(tokenId);
+      const partBalance = await blockheadsParts.balanceOf(mainAccount.address);
+      expect(partBalance).to.equal(6);
+    });
+  });
   // Test royalties
 
   // test withdraw

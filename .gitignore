@@ -4,3 +4,5 @@ artifacts
 cache
 .DS_Store
 .env
+typechain
+.vscode
