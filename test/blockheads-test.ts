@@ -26,6 +26,8 @@ describe("Blockheads", function () {
     await blockheadsParts.registerFriendContract(blockheads.address);
     // @ts-ignore
     await blockheads.setPartMaker(blockheadsParts.address);
+    // @ts-ignore
+    await blockheadsParts.setMainContract(blockheads.address);
 
     const dataBlocks = [
       "Background",
@@ -152,6 +154,13 @@ describe("Blockheads", function () {
       await blockheads.separate(tokenId);
       const partBalance = await blockheadsParts.balanceOf(mainAccount.address);
       expect(partBalance).to.equal(6);
+      const metadata = await blockheadsParts.tokenURI(4);
+      console.log(metadata);
+      const json = JSON.parse(
+        Buffer.from(metadata.split(",")[1], "base64").toString()
+      );
+      console.log(json.attributes);
+      console.log(Buffer.from(json.image.split(",")[1], "base64").toString());
     });
   });
   // Test royalties

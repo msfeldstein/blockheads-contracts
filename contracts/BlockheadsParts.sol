@@ -57,7 +57,7 @@ import "hardhat/console.sol";
 
 ******************/
 
-interface BlockheadsMinter {
+interface IBlockheadsToys {
     function buildBlockhead(
         address receiver,
         uint256 backgroundId,
@@ -67,6 +67,18 @@ interface BlockheadsMinter {
         uint256 faceId,
         uint256 headwearId
     ) external;
+
+    function getLayerLabel(
+        uint16 season,
+        uint16 index,
+        uint16 layerIndex
+    ) external view returns (string memory);
+
+    function getLayerData(
+        uint16 season,
+        uint16 index,
+        uint16 layerIndex
+    ) external view returns (bytes memory);
 }
 
 /**
@@ -76,7 +88,7 @@ interface BlockheadsMinter {
 A friend contract to Blockheads.sol which will allow this contract to mint full blockheads with the particular parts.
  */
 contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
-    BlockheadsMinter mainContract;
+    IBlockheadsToys mainContract;
     mapping(address => bool) friendContracts;
 
     constructor(address proxyRegistryAddress)
@@ -114,6 +126,10 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         friendContracts[enemy] = false;
     }
 
+    function setMainContract(address mainDeployment) external onlyOwner {
+        mainContract = IBlockheadsToys(mainDeployment);
+    }
+
     function build(uint256[6] calldata tokenIds) external {}
 
     function mintPart(
@@ -129,19 +145,42 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         nextTokenId++;
     }
 
-    function tokenURI(
-        uint256 /* tokenId */
-    ) public pure override returns (string memory) {
-        bytes
-            memory svg = "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>";
-        svg = abi.encodePacked(svg, "Parts");
-        svg = abi.encodePacked(svg, "</svg>");
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        Layer memory layer = tokenInfo[tokenId];
+        string memory label = mainContract.getLayerLabel(
+            layer.season,
+            layer.index,
+            uint16(layer.layerIndex)
+        );
+        bytes memory svg = abi.encodePacked(
+            "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>",
+            mainContract.getLayerData(
+                layer.season,
+                layer.index,
+                uint16(layer.layerIndex)
+            ),
+            "</svg>"
+        );
+
         // Need to break up the json generation into 2 encodePackeds to avoid stack too deep errors
         bytes memory json = abi.encodePacked(
             '{"name": "Blockhead Part", "description": "Blockheads Parts", "image": "data:image/svg+xml;base64,',
             Utils.base64Encode(svg),
-            '", "attributes": [{"trait_type": "Background", "value": "white"}]}'
+            '", "attributes": [{"trait_type": "Piece", "value": "',
+            label,
+            '"}]}'
         );
-        return string(abi.encodePacked("data:application/json;base64,", json));
+        return
+            string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Utils.base64Encode(json)
+                )
+            );
     }
 }

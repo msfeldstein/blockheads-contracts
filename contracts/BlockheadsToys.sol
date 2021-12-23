@@ -286,6 +286,14 @@ contract BlockheadsToys is
         return ImageDataBlock(layerPacks[layer.season]).getData(layer.index);
     }
 
+    function getLayerData(
+        uint16 season,
+        uint16 index,
+        uint16 layerIndex
+    ) public view returns (bytes memory) {
+        return ImageDataBlock(packs[layerIndex][season]).getData(index);
+    }
+
     function getBackgroundData(uint256 tokenId)
         public
         view
@@ -348,6 +356,14 @@ contract BlockheadsToys is
         returns (string memory)
     {
         return ImageDataBlock(layerPacks[layer.season]).getLabel(layer.index);
+    }
+
+    function getLayerLabel(
+        uint16 season,
+        uint16 index,
+        uint16 layerIndex
+    ) public view returns (string memory) {
+        return ImageDataBlock(packs[layerIndex][season]).getLabel(index);
     }
 
     function getBackgroundLabel(uint256 tokenId)
