@@ -91,14 +91,17 @@ describe("Blockheads", function () {
     const otherAccount = accounts[2];
     await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
     const token = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
-    await expect(blockheads.connect(otherAccount).setName(token, "Bad"));
+    await expect(blockheads.connect(otherAccount).setName(token, "Bad")).to.be
+      .reverted;
   });
 
   it("Should allow owners to change name", async function () {
     const accounts = await ethers.getSigners();
     const mainAccount = accounts[0];
     await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
+    console.log("SHOULD ALLOW?");
     const token = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
+    console.log("Token", token);
     await blockheads.setName(token, "Good");
     const metadata = await blockheads.tokenURI(token);
     const json = JSON.parse(
@@ -142,7 +145,7 @@ describe("Blockheads", function () {
     await expect(blockheads.connect(otherAccount).withdraw()).to.be.reverted;
   });
 
-  describe.only("Separation", async function () {
+  describe("Separation", async function () {
     it("Should be broken aparty into pieces and recombined", async function () {
       const accounts = await ethers.getSigners();
       const mainAccount = accounts[0];

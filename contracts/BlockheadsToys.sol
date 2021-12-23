@@ -88,11 +88,10 @@ contract BlockheadsToys is
         ARMS,
         HEAD,
         FACE,
-        HEADWEAR,
-        PROFESSION
+        HEADWEAR
     }
 
-    uint256 constant LAYER_COUNT = 7;
+    uint256 constant LAYER_COUNT = 6;
 
     // Packs are the ImageDataBlocks for each of the layers indexed above
     address[][LAYER_COUNT] packs;
@@ -103,14 +102,12 @@ contract BlockheadsToys is
         uint16 season;
         // Index of the represented item in the pack
         uint16 index;
-        // The index of the layer in the context of the toy, matches LayerIndex above
-        LayerIndex layerIndex;
     }
 
     struct Blockhead {
         Layer[7] layers;
         string name;
-        bool isMintInBox;
+        bool opened;
     }
     mapping(uint256 => Blockhead) blockheads;
 
@@ -133,7 +130,16 @@ contract BlockheadsToys is
     }
 
     function mint() external payable {
+        blockheads[nextTokenId].name = "Blockhead";
+        blockheads[nextTokenId].layers[0] = Layer(0, 1);
+        blockheads[nextTokenId].layers[1] = Layer(0, 2);
+        blockheads[nextTokenId].layers[2] = Layer(0, 3);
+        blockheads[nextTokenId].layers[3] = Layer(0, 4);
+        blockheads[nextTokenId].layers[4] = Layer(0, 5);
+        blockheads[nextTokenId].layers[5] = Layer(0, 6);
+
         _safeMint(msg.sender, nextTokenId);
+
         nextTokenId++;
     }
 
@@ -141,7 +147,6 @@ contract BlockheadsToys is
         require(ownerOf(tokenId) == msg.sender);
         Blockhead memory blockhead = blockheads[tokenId];
         for (uint16 i = 0; i < 6; i++) {
-            console.log("Mint part", i);
             Layer memory l = blockhead.layers[i];
             partMaker.mintPart(
                 msg.sender,
@@ -176,10 +181,12 @@ contract BlockheadsToys is
         _;
     }
 
+    error NameTaken(string name);
+
     function setName(uint256 tokenId, string memory name) public {
         require(ownerOf(tokenId) == msg.sender);
         require(bytes(name).length > 0);
-        require(!birthRegistry[name]);
+        if (birthRegistry[name]) revert NameTaken(name);
         Blockhead storage blockhead = blockheads[tokenId];
         birthRegistry[blockhead.name] = false;
         blockhead.name = name;
@@ -219,9 +226,6 @@ contract BlockheadsToys is
             Utils.base64Encode(svg),
             '", "attributes": [{"trait_type": "Background", "value": "',
             getBackgroundLabel(tokenId),
-            '"}, ',
-            '{"trait_type": "Profession", "value": "',
-            getProfession(tokenId),
             '"}, '
         );
         string memory json = Utils.base64Encode(
@@ -268,8 +272,6 @@ contract BlockheadsToys is
                         bh.layers[uint256(LayerIndex.HEAD)].season,
                         bh.layers[uint256(LayerIndex.HEADWEAR)].index,
                         bh.layers[uint256(LayerIndex.HEADWEAR)].season,
-                        bh.layers[uint256(LayerIndex.PROFESSION)].index,
-                        bh.layers[uint256(LayerIndex.PROFESSION)].season,
                         bh.name
                     )
                 )
@@ -352,7 +354,7 @@ contract BlockheadsToys is
 
     function labelFor(Layer memory layer, address[] memory layerPacks)
         private
-        pure
+        view
         returns (string memory)
     {
         return ImageDataBlock(layerPacks[layer.season]).getLabel(layer.index);
@@ -422,20 +424,8 @@ contract BlockheadsToys is
             );
     }
 
-    function getProfession(uint256 tokenId)
-        public
-        view
-        returns (string memory)
-    {
-        return
-            labelFor(
-                blockheads[tokenId].layers[uint256(LayerIndex.PROFESSION)],
-                packs[uint256(LayerIndex.PROFESSION)]
-            );
-    }
-
     function isMintInBox(uint256 tokenId) public view returns (bool) {
-        return blockheads[tokenId].isMintInBox;
+        return !blockheads[tokenId].opened;
     }
 
     function publishSeason(

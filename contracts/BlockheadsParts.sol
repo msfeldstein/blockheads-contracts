@@ -158,7 +158,9 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
             uint16(layer.layerIndex)
         );
         bytes memory svg = abi.encodePacked(
-            "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>",
+            "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>"
+            "<path fill-rule='evenodd' clip-rule='evenodd' d='M15 5H10V6H15V5ZM18 7V8H19V17H18V18H14V19H16V20H14H11H9V19H11V18H7V17H6V8H7V7H18ZM19 21V24H20V25H5V24H6V21H19ZM20 24V21H22V22H23V24H24V25H21V24H20ZM5 21V24H4V25H1V24H2V22H3V21H5Z' fill='#E5E5E5'/>"
+            "<path fill-rule='evenodd' clip-rule='evenodd' d='M18 7V6H16V4H9V6H7V7H6V8H5V17H6V18H7V19H8V20H6V21H5V20H3V21H2V22H1V24H0V25H1V24H2V22H3V21H5V24H4V25H5V24H6V21H19V24H20V25H21V24H20V21H22V22H23V24H24V25H25V24H24V22H23V21H22V20H20V21H19V20H17V19H18V18H19V17H20V8H19V7H18ZM18 7V8H19V17H18V18H7V17H6V8H7V7H18ZM16 20V19H9V20H11H14H16ZM10 5H15V6H10V5Z' fill='#C1C1C1'/>",
             mainContract.getLayerData(
                 layer.season,
                 layer.index,
