@@ -150,20 +150,26 @@ describe("Blockheads", function () {
       const accounts = await ethers.getSigners();
       const mainAccount = accounts[0];
       await blockheads.mint({ value: ethers.utils.parseEther("0.12") });
-      const tokenId = await blockheads.tokenOfOwnerByIndex(
+      let tokenId = await blockheads.tokenOfOwnerByIndex(
         mainAccount.address,
         0
       );
       await blockheads.separate(tokenId);
       const partBalance = await blockheadsParts.balanceOf(mainAccount.address);
       expect(partBalance).to.equal(6);
+      const partIDs = [];
+      for (let i = 0; i < 6; i++) {
+        partIDs.push(
+          await blockheadsParts.tokenOfOwnerByIndex(mainAccount.address, i)
+        );
+      }
       const metadata = await blockheadsParts.tokenURI(2);
-      console.log(metadata);
       const json = JSON.parse(
         Buffer.from(metadata.split(",")[1], "base64").toString()
       );
-      console.log(json.attributes);
-      console.log(Buffer.from(json.image.split(",")[1], "base64").toString());
+      await expect(blockheads.tokenURI(tokenId)).to.be.reverted;
+      await blockheadsParts.buildBlockhead(partIDs as any);
+      tokenId = await blockheads.tokenOfOwnerByIndex(mainAccount.address, 0);
     });
   });
   // Test royalties

@@ -12,7 +12,7 @@ import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
-import "hardhat/console.sol";
+import "./IBlockheadBuilder.sol";
 
 /**************                                                                                             
                                                                                                                                                                                                                                      
@@ -57,17 +57,7 @@ import "hardhat/console.sol";
 
 ******************/
 
-interface IBlockheadsToys {
-    function buildBlockhead(
-        address receiver,
-        uint256 backgroundId,
-        uint256 bodyId,
-        uint256 armsId,
-        uint256 headId,
-        uint256 faceId,
-        uint256 headwearId
-    ) external;
-
+interface IBlockheadsToys is IBlockheadBuilder {
     function getLayerLabel(
         uint16 season,
         uint16 index,
@@ -79,6 +69,9 @@ interface IBlockheadsToys {
         uint16 index,
         uint16 layerIndex
     ) external view returns (bytes memory);
+
+    function buildBlockhead(address receiver, uint16[12] calldata partValues)
+        external;
 }
 
 /**
@@ -113,7 +106,7 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         // Index of the represented item in the pack
         uint16 index;
         // The index of the layer on the toy (background=0, body = 1, arms = 2, head = 3, face = 4, headwear = 5
-        LayerIndex layerIndex;
+        uint16 layerIndex;
     }
 
     mapping(uint256 => Layer) tokenInfo;
@@ -130,8 +123,6 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         mainContract = IBlockheadsToys(mainDeployment);
     }
 
-    function build(uint256[6] calldata tokenIds) external {}
-
     function mintPart(
         address receiver,
         address, /* packAddress */
@@ -141,8 +132,22 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
     ) external {
         require(friendContracts[msg.sender]);
         _safeMint(receiver, nextTokenId);
-        tokenInfo[nextTokenId] = Layer(season, index, LayerIndex(layerNumber));
+        tokenInfo[nextTokenId] = Layer(season, index, layerNumber);
         nextTokenId++;
+    }
+
+    function buildBlockhead(uint256[6] calldata partTokens) external {
+        uint16[6] memory seasons;
+        uint16[6] memory indices;
+        for (uint256 i = 0; i < 6; i++) {
+            uint256 partToken = partTokens[i];
+            require(ownerOf(partToken) == msg.sender);
+            require(tokenInfo[partToken].layerIndex == i);
+            seasons[i] = tokenInfo[partToken].season;
+            indices[i] = tokenInfo[partToken].index;
+        }
+
+        mainContract.buildBlockhead(msg.sender, seasons, indices);
     }
 
     function tokenURI(uint256 tokenId)

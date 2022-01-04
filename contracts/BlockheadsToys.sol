@@ -12,6 +12,7 @@ import "./ERC2981ContractWideRoyalties.sol";
 import "./IERC721Mutable.sol";
 import "./Utils.sol";
 import "./ERC721Tradable.sol";
+import "./IBlockheadBuilder.sol";
 import "hardhat/console.sol";
 
 /**************                                                                                             
@@ -80,6 +81,7 @@ contract BlockheadsToys is
     ERC721Tradable,
     ERC2981ContractWideRoyalties,
     IERC721Mutable,
+    IBlockheadBuilder,
     ReentrancyGuard
 {
     enum LayerIndex {
@@ -108,6 +110,7 @@ contract BlockheadsToys is
         Layer[7] layers;
         string name;
         bool opened;
+        bool exists;
     }
     mapping(uint256 => Blockhead) blockheads;
 
@@ -115,7 +118,7 @@ contract BlockheadsToys is
     mapping(string => bool) birthRegistry;
 
     uint256 public nextTokenId = 10000;
-    PartMaker partMaker;
+    address partMaker;
 
     // Constructor requires the proxy for opensea, and all the data blocks
     constructor(address proxyRegistryAddress)
@@ -126,17 +129,18 @@ contract BlockheadsToys is
     }
 
     function setPartMaker(address partMakerAddress) external onlyOwner {
-        partMaker = PartMaker(partMakerAddress);
+        partMaker = partMakerAddress;
     }
 
     function mint() external payable {
-        blockheads[nextTokenId].name = "Blockhead";
-        blockheads[nextTokenId].layers[0] = Layer(0, 2);
-        blockheads[nextTokenId].layers[1] = Layer(0, 3);
-        blockheads[nextTokenId].layers[2] = Layer(0, 4);
-        blockheads[nextTokenId].layers[3] = Layer(0, 5);
-        blockheads[nextTokenId].layers[4] = Layer(0, 6);
-        blockheads[nextTokenId].layers[5] = Layer(0, 17);
+        blockheads[nextTokenId].name = "Unopened Blockhead";
+        blockheads[nextTokenId].layers[0] = Layer(0, random(0));
+        blockheads[nextTokenId].layers[1] = Layer(0, random(1));
+        blockheads[nextTokenId].layers[2] = Layer(0, random(2));
+        blockheads[nextTokenId].layers[3] = Layer(0, random(3));
+        blockheads[nextTokenId].layers[4] = Layer(0, random(4));
+        blockheads[nextTokenId].layers[5] = Layer(0, random(5));
+        blockheads[nextTokenId].exists = true;
 
         _safeMint(msg.sender, nextTokenId);
 
@@ -148,7 +152,7 @@ contract BlockheadsToys is
         Blockhead memory blockhead = blockheads[tokenId];
         for (uint16 i = 0; i < 6; i++) {
             Layer memory l = blockhead.layers[i];
-            partMaker.mintPart(
+            PartMaker(partMaker).mintPart(
                 msg.sender,
                 packs[i][l.season],
                 l.season,
@@ -156,6 +160,42 @@ contract BlockheadsToys is
                 i
             );
         }
+        burn(tokenId);
+    }
+
+    function buildBlockhead(
+        address receiver,
+        uint16[6] calldata partSeasons,
+        uint16[6] calldata partIndexes
+    ) external override {
+        require(msg.sender == partMaker);
+        blockheads[nextTokenId].name = "Built Blockhead";
+        for (uint256 i = 0; i < 6; i++) {
+            blockheads[nextTokenId].layers[0] = Layer(
+                partSeasons[i],
+                partIndexes[i]
+            );
+        }
+        blockheads[nextTokenId].opened = true;
+        _safeMint(receiver, nextTokenId);
+        console.log("Minted", nextTokenId);
+
+        nextTokenId++;
+    }
+
+    function burn(uint256 tokenId) public {
+        require(ownerOf(tokenId) == msg.sender);
+
+        // Clear out any mappings to save gas and have clean data
+        blockheads[tokenId].name = "";
+        blockheads[tokenId].layers[0] = Layer(0, 0);
+        blockheads[tokenId].layers[1] = Layer(0, 0);
+        blockheads[tokenId].layers[2] = Layer(0, 0);
+        blockheads[tokenId].layers[3] = Layer(0, 0);
+        blockheads[tokenId].layers[4] = Layer(0, 0);
+        blockheads[tokenId].layers[5] = Layer(0, 0);
+        blockheads[tokenId].opened = false;
+        blockheads[tokenId].exists = false;
 
         _burn(tokenId);
     }
@@ -171,8 +211,13 @@ contract BlockheadsToys is
         require(success, "Transfer failed.");
     }
 
-    function random(bytes memory input) internal pure returns (uint256) {
-        return uint256(keccak256(input));
+    function random(uint16 layerIndex) internal view returns (uint16) {
+        return
+            uint16(
+                uint256(
+                    (keccak256(abi.encodePacked(layerIndex, block.timestamp)))
+                )
+            );
     }
 
     modifier ownsBoth(uint256 token1, uint256 token2) {
@@ -209,6 +254,7 @@ contract BlockheadsToys is
         override
         returns (string memory)
     {
+        require(blockheads[tokenId].exists);
         bytes
             memory svg = "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>";
         svg = abi.encodePacked(svg, getBackgroundData(tokenId));

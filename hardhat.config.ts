@@ -8,6 +8,7 @@ import "hardhat-gas-reporter";
 import "hardhat-deploy";
 import "hardhat-contract-sizer";
 import "dotenv/config";
+import { defaultAccounts } from "ethereum-waffle";
 
 task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
@@ -48,6 +49,10 @@ const config: HardhatUserConfig = {
     },
     rinkeby: {
       url: process.env.ALCHEMY_RINKEBY_URL,
+      accounts: [process.env.RINKEBY_SECRET!],
+    },
+    mumbai: {
+      url: process.env.ALCHEMY_MUMBAI_URL,
       accounts: [process.env.RINKEBY_SECRET!],
     },
     mainnet: {
