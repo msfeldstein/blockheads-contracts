@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 contract FaceImageData {
     function getLabel(uint256 slot) public pure returns (string memory) {
-        string[30] memory names = [
+        string[27] memory names = [
             "Red Lipstick",
             "Light Blue Goggles",
             "Black Goggles",
@@ -30,7 +30,7 @@ contract FaceImageData {
             "Smoking",
             "Black Aviator Glasses",
             "Round Glasses",
-            "Black Round Glasses",
+            "Black Round Glasses"
         ];
         return names[slot % names.length];
     }
@@ -50,7 +50,7 @@ contract FaceImageData {
         returns (bytes memory)
     {
         if (bytes(pathData.d).length == 0) return bytes("");
-        
+
         return
             abi.encodePacked(
                 '<path fill-rule="evenodd" clip-rule="evenodd" d="',
@@ -62,7 +62,7 @@ contract FaceImageData {
     }
 
     function getData(uint256 slot) public pure returns (bytes memory) {
-        SVGComposition[30] memory svgData = [
+        SVGComposition[27] memory svgData = [
             SVGComposition(
                 [
                     PathData("M10 15H11V16H14V15H15V14H10V15Z", "#DD1A21"),
@@ -344,7 +344,6 @@ contract FaceImageData {
                     PathData("", "")
                 ]
             ),
-
             SVGComposition(
                 [
                     PathData(
