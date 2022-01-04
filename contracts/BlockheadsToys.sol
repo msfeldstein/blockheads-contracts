@@ -118,7 +118,7 @@ contract BlockheadsToys is
     mapping(string => bool) birthRegistry;
 
     uint256 public nextTokenId = 10000;
-    address partMaker;
+    address public partMaker;
 
     // Constructor requires the proxy for opensea, and all the data blocks
     constructor(address proxyRegistryAddress)
@@ -177,6 +177,7 @@ contract BlockheadsToys is
             );
         }
         blockheads[nextTokenId].opened = true;
+        blockheads[nextTokenId].exists = true;
         _safeMint(receiver, nextTokenId);
         console.log("Minted", nextTokenId);
 

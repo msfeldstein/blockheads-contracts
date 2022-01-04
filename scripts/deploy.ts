@@ -50,19 +50,17 @@ async function main() {
     dataBlockAddrs[5]
   );
 
-  if (hre.network.name === "ropsten" || hre.network.name === "rinkeby") {
-    await new Promise((resolve) => {
-      setTimeout(resolve, 33000);
-    });
-    await hre.run("verify:verify", {
-      address: blockheads.address,
-      constructorArguments: [proxyRegistryAddress],
-    });
-    await hre.run("verify:verify", {
-      address: blockheadsParts.address,
-      constructorArguments: [proxyRegistryAddress],
-    });
-  }
+  await new Promise((resolve) => {
+    setTimeout(resolve, 13000);
+  });
+  await hre.run("verify:verify", {
+    address: blockheads.address,
+    constructorArguments: [proxyRegistryAddress],
+  });
+  await hre.run("verify:verify", {
+    address: blockheadsParts.address,
+    constructorArguments: [proxyRegistryAddress],
+  });
 }
 
 // We recommend this pattern to be able to use async/await everywhere

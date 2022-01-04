@@ -81,7 +81,7 @@ interface IBlockheadsToys is IBlockheadBuilder {
 A friend contract to Blockheads.sol which will allow this contract to mint full blockheads with the particular parts.
  */
 contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
-    IBlockheadsToys mainContract;
+    IBlockheadsToys public mainContract;
     mapping(address => bool) friendContracts;
 
     constructor(address proxyRegistryAddress)

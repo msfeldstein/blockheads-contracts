@@ -29,11 +29,8 @@ contract FaceImageData {
             "Eyepatch with Beard",
             "Smoking",
             "Black Aviator Glasses",
-            "Black Aviator Glasses with Beard",
             "Round Glasses",
-            "Round Glasses with Beard",
             "Black Round Glasses",
-            "Black Round Glasses with Beard"
         ];
         return names[slot % names.length];
     }
@@ -339,19 +336,6 @@ contract FaceImageData {
             ),
             SVGComposition(
                 [
-                    PathData(
-                        "M17 10V11H18V12H17V13H14V12H13V11H12V12H11V13H8V12H7V11H8V10H17ZM10 14H11V15H10V14ZM14 15V16H11V15H14ZM14 15V14H15V15H14Z",
-                        ""
-                    ),
-                    PathData(
-                        "M7 15H6V16H7V17H8V18H9V17H10V18H11V17H10V16H9V15H8V16H7V15ZM8 16V17H9V16H8ZM12 17H13V18H12V17ZM15 17H14V18H15V17ZM16 16H15V17H16V18H17V17H18V16H19V15H18V16H17V15H16V16ZM16 16V17H17V16H16Z",
-                        "#491702"
-                    ),
-                    PathData("", "")
-                ]
-            ),
-            SVGComposition(
-                [
                     PathData("M9 11H11V13H9V11ZM14 11H16V13H14V11Z", "#78BFEA"),
                     PathData(
                         "M9 10H11V11H9V10ZM9 13H8V12H7V11H9V13ZM11 13V14H9V13H11ZM14 13H13V12H12V13H11V11H14V13ZM16 13H14V14H16V13ZM16 11H18V12H17V13H16V11ZM16 11H14V10H16V11ZM11 15H14V16H11V15Z",
@@ -360,19 +344,7 @@ contract FaceImageData {
                     PathData("", "")
                 ]
             ),
-            SVGComposition(
-                [
-                    PathData("M9 11H11V13H9V11ZM14 11H16V13H14V11Z", "#78BFEA"),
-                    PathData(
-                        "M9 10H11V11H9V10ZM9 13H8V12H7V11H9V13ZM11 13V14H9V13H11ZM14 13H13V12H12V13H11V11H14V13ZM16 13H14V14H16V13ZM16 11H18V12H17V13H16V11ZM16 11H14V10H16V11ZM11 15H14V16H11V15Z",
-                        ""
-                    ),
-                    PathData(
-                        "M7 15H6V16H7V17H8V18H9V17H10V18H11V17H10V16H9V15H8V16H7V15ZM8 16V17H9V16H8ZM12 17H13V18H12V17ZM15 17H14V18H15V17ZM16 16H15V17H16V18H17V17H18V16H19V15H18V16H17V15H16V16ZM16 16V17H17V16H16Z",
-                        "#491702"
-                    )
-                ]
-            ),
+
             SVGComposition(
                 [
                     PathData(
@@ -380,19 +352,6 @@ contract FaceImageData {
                         ""
                     ),
                     PathData("", ""),
-                    PathData("", "")
-                ]
-            ),
-            SVGComposition(
-                [
-                    PathData(
-                        "M16 10V11H18V12H17V13H16V14H14V13H13V12H12V13H11V14H9V13H8V12H7V11H9V10H11V11H14V10H16ZM11 15H14V16H11V15Z",
-                        ""
-                    ),
-                    PathData(
-                        "M7 15H6V16H7V17H8V18H9V17H10V18H11V17H10V16H9V15H8V16H7V15ZM8 16V17H9V16H8ZM12 17H13V18H12V17ZM15 17H14V18H15V17ZM16 16H15V17H16V18H17V17H18V16H19V15H18V16H17V15H16V16ZM16 16V17H17V16H16Z",
-                        "#491702"
-                    ),
                     PathData("", "")
                 ]
             )
