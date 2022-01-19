@@ -50,6 +50,15 @@ async function main() {
     dataBlockAddrs[5]
   );
 
+  if (hre.network.name === "rinkeby") {
+    // for (var i = 0; i < 5; i++) {
+    //   await blockheads.mint();
+    // }
+    // for (var i = 1; i < 3; i++) {
+    //   await blockheads.separate(10000 + i);
+    // }
+  }
+
   await new Promise((resolve) => {
     setTimeout(resolve, 13000);
   });

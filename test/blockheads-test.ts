@@ -66,11 +66,13 @@ describe("Blockheads", function () {
     expect(json).to.have.property("image");
     expect(json).to.have.property("name");
     expect(json).to.have.property("attributes");
+    console.log(json);
     console.log(json.attributes);
     console.log(Buffer.from(json.image.split(",")[1], "base64").toString());
 
     // todo test that the image is valid svg
     const svg = Buffer.from(json.image.split(",")[1], "base64").toString();
+    console.log(svg);
     expect(isSvg(svg)).to.be.true;
   });
 

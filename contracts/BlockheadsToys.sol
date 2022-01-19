@@ -134,12 +134,12 @@ contract BlockheadsToys is
 
     function mint() external payable {
         blockheads[nextTokenId].name = "Unopened Blockhead";
-        blockheads[nextTokenId].layers[0] = Layer(0, random(0));
-        blockheads[nextTokenId].layers[1] = Layer(0, random(1));
-        blockheads[nextTokenId].layers[2] = Layer(0, random(2));
-        blockheads[nextTokenId].layers[3] = Layer(0, random(3));
-        blockheads[nextTokenId].layers[4] = Layer(0, random(4));
-        blockheads[nextTokenId].layers[5] = Layer(0, random(5));
+        blockheads[nextTokenId].layers[0] = Layer(0, random(0, nextTokenId));
+        blockheads[nextTokenId].layers[1] = Layer(0, random(1, nextTokenId));
+        blockheads[nextTokenId].layers[2] = Layer(0, random(2, nextTokenId));
+        blockheads[nextTokenId].layers[3] = Layer(0, random(3, nextTokenId));
+        blockheads[nextTokenId].layers[4] = Layer(0, random(4, nextTokenId));
+        blockheads[nextTokenId].layers[5] = Layer(0, random(5, nextTokenId));
         blockheads[nextTokenId].exists = true;
 
         _safeMint(msg.sender, nextTokenId);
@@ -212,11 +212,24 @@ contract BlockheadsToys is
         require(success, "Transfer failed.");
     }
 
-    function random(uint16 layerIndex) internal view returns (uint16) {
+    function random(uint16 layerIndex, uint256 tokenId)
+        internal
+        view
+        returns (uint16)
+    {
         return
             uint16(
                 uint256(
-                    (keccak256(abi.encodePacked(layerIndex, block.timestamp)))
+                    (
+                        keccak256(
+                            abi.encodePacked(
+                                layerIndex,
+                                block.timestamp,
+                                msg.sender,
+                                tokenId
+                            )
+                        )
+                    )
                 )
             );
     }

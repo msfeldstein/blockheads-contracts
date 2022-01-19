@@ -150,18 +150,20 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         mainContract.buildBlockhead(msg.sender, seasons, indices);
     }
 
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
+    function layerSVG(uint256 tokenId) external view returns (string memory) {
         Layer memory layer = tokenInfo[tokenId];
-        string memory label = mainContract.getLayerLabel(
-            layer.season,
-            layer.index,
-            uint16(layer.layerIndex)
-        );
+        return
+            string(
+                mainContract.getLayerData(
+                    layer.season,
+                    layer.index,
+                    uint16(layer.layerIndex)
+                )
+            );
+    }
+
+    function _layerSVG(uint256 tokenId) internal view returns (bytes memory) {
+        Layer memory layer = tokenInfo[tokenId];
         bytes
             memory svg = "<svg xmlns='http://www.w3.org/2000/svg' preserveAspectRatio='xMinYMin meet' viewBox='0 0 25 25' width='500' height='500'>";
         string
@@ -171,11 +173,13 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
         if (uint16(layer.layerIndex) == 0) {
             svg = abi.encodePacked(
                 svg,
+                "<g id='content'>",
                 mainContract.getLayerData(
                     layer.season,
                     layer.index,
                     uint16(layer.layerIndex)
                 ),
+                "</g>",
                 placeholder,
                 svgEnd
             );
@@ -183,14 +187,42 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
             svg = abi.encodePacked(
                 svg,
                 placeholder,
+                "<g id='content'>",
                 mainContract.getLayerData(
                     layer.season,
                     layer.index,
                     uint16(layer.layerIndex)
                 ),
+                "</g>",
                 svgEnd
             );
         }
+        return svg;
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        bytes memory svg = _layerSVG(tokenId);
+
+        Layer memory layer = tokenInfo[tokenId];
+        string memory label = mainContract.getLayerLabel(
+            layer.season,
+            layer.index,
+            uint16(layer.layerIndex)
+        );
+
+        string[6] memory LAYER_NAMES = [
+            "Background",
+            "Body",
+            "Arms",
+            "Head",
+            "Face",
+            "Headwear"
+        ];
 
         // Need to break up the json generation into 2 encodePackeds to avoid stack too deep errors
         bytes memory json = abi.encodePacked(
@@ -198,6 +230,8 @@ contract BlockheadsParts is ERC721Tradable, ERC2981ContractWideRoyalties {
             Utils.base64Encode(svg),
             '", "attributes": [{"trait_type": "Piece", "value": "',
             label,
+            '"}, {"trait_type": "Layer", "value": "',
+            LAYER_NAMES[layer.layerIndex],
             '"}]}'
         );
         return
